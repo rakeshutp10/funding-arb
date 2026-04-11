@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>FundingArb</title>
+<title>FundingArb — Delta Neutral</title>
 <style>
 :root{
   --bg:#060810;--bg2:#0b0f1a;--bg3:#101524;--bg4:#18202e;
@@ -18,7 +18,8 @@
   --rdBg:rgba(240,64,64,.08);--rdBd:rgba(240,64,64,.28);
   --acBg:rgba(59,123,255,.10);
   --sh:0 4px 24px rgba(0,0,0,.5);
-  --r:8px;--f:'SF Mono','Cascadia Code','Fira Code','Consolas',monospace;
+  --r:8px;
+  --f:'SF Mono','Cascadia Code','Fira Code','Consolas',monospace;
 }
 [data-theme="light"]{
   --bg:#eef2fb;--bg2:#fff;--bg3:#f5f8ff;--bg4:#eaeffc;
@@ -45,7 +46,7 @@ label{display:block;color:var(--tx3);font-size:10px;margin-bottom:3px;letter-spa
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:4px}
 
-/* HEADER */
+/* ── HEADER ──────────────────────────────── */
 header{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:0 14px;display:flex;align-items:center;height:54px;gap:10px;position:sticky;top:0;z-index:100;box-shadow:var(--sh)}
 .brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
 .lsvg{width:38px;height:38px;display:block;flex-shrink:0}
@@ -63,7 +64,7 @@ header{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:0 14px;d
 .bset{background:var(--bg3);color:var(--tx2);border:1px solid var(--bdr);padding:6px 12px;font-size:11px;flex-shrink:0}
 .bset:hover{color:var(--tx)}
 
-/* SETTINGS */
+/* ── SETTINGS ────────────────────────────── */
 #sp{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:14px;display:none}
 #sp.open{display:block}
 .sg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -79,38 +80,35 @@ input[type=password]{padding-right:40px}
 .bprim:hover{background:var(--acD)}
 .cst{font-size:10px;margin-top:5px}
 
-/* WARNING BOX */
-.warn-box{background:rgba(255,176,32,.08);border:1px solid var(--gdBd);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-size:10px;color:var(--gd);line-height:1.6;display:none}
-.warn-box.show{display:block}
-.warn-box b{display:block;margin-bottom:4px;font-size:11px}
+/* ── EXCHANGE STATUS BAR ─────────────────── */
+.exbar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:6px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.exitem{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;border:1px solid var(--bdr);background:var(--bg3)}
+.exdot{width:8px;height:8px;border-radius:50%;background:var(--tx3);flex-shrink:0;transition:background .4s}
+.exdot.ok{background:var(--gn);box-shadow:0 0 6px rgba(30,204,110,.5)}
+.exdot.fail{background:var(--rd)}
+.exname{font-size:11px;font-weight:700;color:var(--tx)}
+.excount{font-size:9px;color:var(--tx3)}
+.exsep{flex:1}
 
-/* CONN BAR */
-.cbar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:4px 14px;display:flex;align-items:center;gap:6px;font-size:10px;overflow-x:auto;white-space:nowrap}
-.cdot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--tx3)}
-.cdot.ok{background:var(--gn)}.cdot.fail{background:var(--rd)}
-.ctx{color:var(--tx2)}
-.csep{color:var(--bdr2);margin:0 2px}
-
-/* BALANCE BAR */
+/* ── BALANCE BAR ─────────────────────────── */
 .bbar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:5px 14px;display:flex;align-items:center;gap:5px;font-size:10px;overflow-x:auto;white-space:nowrap}
 .bi{color:var(--tx2)}.bi b{color:var(--tx);font-weight:700}
 .bsep{color:var(--bdr2);margin:0 3px}
-.brate{color:var(--tx3);font-size:9px}
 .bref{margin-left:auto;color:var(--ac);cursor:pointer;flex-shrink:0}
 .bref:hover{text-decoration:underline}
 
-/* TABS */
+/* ── TABS ────────────────────────────────── */
 .tabs{background:var(--bg2);border-bottom:1px solid var(--bdr);display:flex;overflow-x:auto}
 .tabb{background:none;color:var(--tx3);padding:10px 18px;font-size:11px;border-bottom:2px solid transparent;border-radius:0;white-space:nowrap;flex-shrink:0}
 .tabb.active{color:var(--ac);border-bottom-color:var(--ac)}
 .tc{display:none;padding:14px}
 .tc.active{display:block}
 
-/* TOOLBAR */
+/* ── TOOLBAR ─────────────────────────────── */
 .tb{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-.bref2{background:var(--ac);color:#fff;padding:9px 18px;font-weight:700}
-.bref2:hover{background:var(--acD)}
-.bref2:disabled{background:var(--bg3);color:var(--tx3);cursor:not-allowed;transform:none}
+.brfsh{background:var(--ac);color:#fff;padding:9px 20px;font-weight:700;font-size:12px}
+.brfsh:hover{background:var(--acD)}
+.brfsh:disabled{background:var(--bg3);color:var(--tx3);cursor:not-allowed;transform:none}
 .lu{font-size:10px;color:var(--tx3)}
 .fw{margin-left:auto;display:flex;align-items:center;gap:6px}
 .fw label{margin:0}
@@ -118,12 +116,12 @@ input[type=password]{padding-right:40px}
 .bload{background:var(--bg3);color:var(--tx2);border:1px solid var(--bdr);padding:7px 14px;font-size:11px}
 .bload:hover{color:var(--tx)}
 
-/* STATS */
+/* ── STATS ───────────────────────────────── */
 .sr{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
 .chip{background:var(--bg3);border:1px solid var(--bdr);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--tx2)}
 .chip b{color:var(--tx)}
 
-/* ADVISOR */
+/* ── ADVISOR ─────────────────────────────── */
 #advP{background:var(--bg3);border:1px solid var(--bdr);border-left:3px solid var(--gd);border-radius:var(--r);margin-bottom:16px;display:none}
 #advP.show{display:block}
 .ahd{padding:9px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;border-bottom:1px solid var(--bdr)}
@@ -147,7 +145,7 @@ input[type=password]{padding-right:40px}
 .badv{background:var(--gdBg);color:var(--gd);border:1px solid var(--gdBd);padding:6px 12px;font-weight:700;font-size:11px;width:100%;margin-top:8px;border-radius:var(--r)}
 .badv:hover{background:rgba(255,176,32,.18)}
 
-/* OPPORTUNITY GRID */
+/* ── OPPORTUNITY GRID ────────────────────── */
 .og{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .oc{background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:border-color .2s,box-shadow .2s}
 .oc:hover{border-color:var(--bdr2);box-shadow:var(--sh)}
@@ -185,7 +183,7 @@ input[type=password]{padding-right:40px}
 .cvol span{color:var(--tx2)}
 .empty{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--tx3);font-size:12px;line-height:2}
 
-/* MODAL */
+/* ── MODAL ───────────────────────────────── */
 .ovr{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:flex-end;justify-content:center}
 .ovr.hidden{display:none}
 .mdl{background:var(--bg2);border:1px solid var(--bdr2);border-bottom:none;border-radius:14px 14px 0 0;width:100%;max-width:520px;max-height:94vh;overflow-y:auto}
@@ -219,9 +217,10 @@ input[type=password]{padding-right:40px}
 .ores{margin-top:12px;padding:11px 12px;background:var(--bg3);border-radius:var(--r);font-size:11px;word-break:break-all;display:none}
 .ores.show{display:block}
 .rok{border-left:3px solid var(--gn)}.rerr{border-left:3px solid var(--rd)}
-.rlbl{font-size:9px;color:var(--tx3);margin-bottom:3px}.rsec{margin-bottom:8px}
+.rlbl{font-size:9px;color:var(--tx3);margin-bottom:3px}
+.rsec{margin-bottom:8px}
 
-/* POSITIONS / HISTORY */
+/* ── POSITIONS / HISTORY ─────────────────── */
 .pgrd{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:540px){.pgrd{grid-template-columns:1fr}}
 .ebox{background:var(--bg3);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden}
@@ -236,12 +235,12 @@ input[type=password]{padding-right:40px}
 .htbl td{padding:8px 10px;border-bottom:1px solid var(--bdr);color:var(--tx)}
 .sbb{color:var(--gn);font-weight:700}.sbs{color:var(--rd);font-weight:700}
 
-/* DEBUG */
-.dbx{background:var(--bg3);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;margin-bottom:14px;font-size:10px;display:none}
+/* ── DEBUG ───────────────────────────────── */
+.dbx{background:var(--bg3);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;font-size:10px;display:none}
 .dbx.show{display:block}
-#dbgtxt{color:var(--tx2);line-height:1.8;word-break:break-all}
+#dbtxt{color:var(--tx2);line-height:1.9;word-break:break-all}
 
-/* TOAST */
+/* ── TOAST ───────────────────────────────── */
 .tw{position:fixed;bottom:20px;right:14px;display:flex;flex-direction:column;gap:8px;z-index:999}
 .toast{background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 14px;font-size:11px;max-width:280px;animation:si .2s ease;color:var(--tx)}
 .toast.ok{border-left:3px solid var(--gn)}.toast.err{border-left:3px solid var(--rd)}.toast.warn{border-left:3px solid var(--gd)}
@@ -250,6 +249,7 @@ input[type=password]{padding-right:40px}
 </head>
 <body>
 
+<!-- HEADER -->
 <header>
   <div class="brand">
     <svg class="lsvg" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -280,18 +280,17 @@ input[type=password]{padding-right:40px}
       <div class="ftime" id="ftime">--:--</div>
     </div>
   </div>
-  <button class="bthm" id="thmBtn" title="Toggle Light/Dark">
-    <span id="thmIco">&#9788;</span>
-  </button>
+  <button class="bthm" id="thmBtn" title="Toggle Light/Dark"><span id="thmIco">&#9788;</span></button>
   <button class="bset" id="setBtn">Settings</button>
 </header>
 
+<!-- SETTINGS -->
 <div id="sp">
   <div class="sg">
     <div class="sbox" style="grid-column:1/-1">
-      <div class="stl">Backend Connection</div>
+      <div class="stl">Backend Connection (Railway URL)</div>
       <div class="fld">
-        <label>Railway Backend URL — your deployed server address</label>
+        <label>Paste your Railway app URL here</label>
         <input type="url" id="backendUrl" placeholder="https://your-app.up.railway.app"/>
       </div>
       <button class="bprim" onclick="testConn()">Test Connection &amp; Save</button>
@@ -311,16 +310,16 @@ input[type=password]{padding-right:40px}
       </div>
     </div>
     <div class="sbox">
-      <div class="stl">Pi42</div>
+      <div class="stl">CoinDCX (Indian Exchange)</div>
       <div class="fld">
         <label>API Key</label>
-        <div class="iw"><input type="password" id="pi42Key" placeholder="Pi42 API Key"/>
-        <button class="eye" onclick="eyeT('pi42Key',this)">show</button></div>
+        <div class="iw"><input type="password" id="dcxKey" placeholder="CoinDCX API Key"/>
+        <button class="eye" onclick="eyeT('dcxKey',this)">show</button></div>
       </div>
       <div class="fld">
         <label>API Secret</label>
-        <div class="iw"><input type="password" id="pi42Secret" placeholder="Pi42 API Secret"/>
-        <button class="eye" onclick="eyeT('pi42Secret',this)">show</button></div>
+        <div class="iw"><input type="password" id="dcxSecret" placeholder="CoinDCX API Secret"/>
+        <button class="eye" onclick="eyeT('dcxSecret',this)">show</button></div>
       </div>
     </div>
     <div class="sbox" style="grid-column:1/-1">
@@ -329,33 +328,33 @@ input[type=password]{padding-right:40px}
   </div>
 </div>
 
-<div class="cbar">
-  <div class="cdot" id="cdB"></div><span class="ctx" id="ctB">Backend: not checked</span>
-  <span class="csep">|</span>
-  <div class="cdot" id="cdD"></div><span class="ctx" id="ctD">Delta: --</span>
-  <span class="csep">|</span>
-  <div class="cdot" id="cdP"></div><span class="ctx" id="ctP">Pi42: --</span>
-  <span class="csep">|</span>
-  <span class="ctx" id="ctR">INR Rate: --</span>
+<!-- EXCHANGE STATUS BAR — Green dot when connected -->
+<div class="exbar">
+  <div class="exitem">
+    <div class="exdot" id="dotD"></div>
+    <span class="exname">Delta Exchange India</span>
+    <span class="excount" id="cntD"></span>
+  </div>
+  <div class="exitem">
+    <div class="exdot" id="dotC"></div>
+    <span class="exname">CoinDCX</span>
+    <span class="excount" id="cntC"></span>
+  </div>
+  <div class="exsep"></div>
+  <span style="font-size:10px;color:var(--tx3)" id="ctB">Backend: not checked</span>
 </div>
 
-<div class="warn-box" id="warnBox">
-  <b>Pi42 IP Block — Action Required</b>
-  Pi42 blocks non-Indian IP addresses. Railway default region is USA.
-  Fix: In Railway dashboard, open your service > Settings > Region > Change to "ap-southeast-1 (Singapore)" or "ap-south-1 (Mumbai)" > Save. Then redeploy. Singapore/Mumbai IPs work with Pi42.
-</div>
-
+<!-- BALANCE BAR -->
 <div class="bbar">
   <div class="bi">Delta: <b id="balD">-- USD</b></div>
   <span class="bsep">|</span>
-  <div class="bi">Pi42: <b id="balP">-- USD</b></div>
+  <div class="bi">CoinDCX: <b id="balC">-- USD</b></div>
   <span class="bsep">|</span>
   <div class="bi">Total: <b id="balT">-- USD</b></div>
-  <span class="bsep">|</span>
-  <div class="brate" id="brate">1 USD = -- INR</div>
   <div class="bref" onclick="loadBal()">Refresh Balance</div>
 </div>
 
+<!-- TABS -->
 <div class="tabs">
   <button class="tabb active" onclick="tab('opps',this)">Opportunities</button>
   <button class="tabb" onclick="tab('pos',this)">Positions</button>
@@ -363,10 +362,10 @@ input[type=password]{padding-right:40px}
   <button class="tabb" onclick="tab('dbg',this)">Debug</button>
 </div>
 
-<!-- OPPORTUNITIES -->
+<!-- TAB: OPPORTUNITIES -->
 <div class="tc active" id="tab-opps">
   <div class="tb">
-    <button class="bref2" id="rfBtn" onclick="doScan()">Refresh Data</button>
+    <button class="brfsh" id="rfBtn" onclick="doScan()">Refresh Data</button>
     <div class="lu">Last: <span id="lastUp">never</span></div>
     <div class="fw">
       <label>Min Diff %</label>
@@ -380,6 +379,7 @@ input[type=password]{padding-right:40px}
     <div class="chip" style="border-color:var(--rdBd);color:var(--rd)">Both- <b id="stN">0</b></div>
     <div class="chip">Profitable <b id="stY">0</b></div>
   </div>
+  <!-- ADVISOR -->
   <div id="advP">
     <div class="ahd" onclick="togAdv()">
       <div class="aico">
@@ -395,49 +395,50 @@ input[type=password]{padding-right:40px}
       <div class="arsn" id="arsn"></div>
     </div>
   </div>
+  <!-- GRID -->
   <div class="og" id="og">
     <div class="empty">Press "Refresh Data" to scan both exchanges.<br>Set Backend URL in Settings first.</div>
   </div>
 </div>
 
-<!-- POSITIONS -->
+<!-- TAB: POSITIONS -->
 <div class="tc" id="tab-pos">
   <div class="tb"><button class="bload" onclick="loadPos()">Load Positions</button></div>
   <div class="pgrd">
-    <div class="ebox"><div class="ehd">Delta Exchange India</div><div id="dp" style="padding:14px;color:var(--tx3);font-size:11px">Not loaded</div></div>
-    <div class="ebox"><div class="ehd">Pi42</div><div id="pp" style="padding:14px;color:var(--tx3);font-size:11px">Not loaded</div></div>
+    <div class="ebox"><div class="ehd">Delta Exchange India</div><div id="dpOS" style="padding:14px;color:var(--tx3);font-size:11px">Not loaded</div></div>
+    <div class="ebox"><div class="ehd">CoinDCX</div><div id="cpOS" style="padding:14px;color:var(--tx3);font-size:11px">Not loaded</div></div>
   </div>
 </div>
 
-<!-- HISTORY -->
+<!-- TAB: HISTORY -->
 <div class="tc" id="tab-hist">
-  <div class="tb"><button class="bload" onclick="loadHist()">Load History</button></div>
-  <div style="margin-bottom:10px;font-size:11px;color:var(--tx2);font-weight:700">Delta Exchange</div>
+  <div class="tb"><button class="bload" onclick="loadHist()">Load Order History</button></div>
+  <div style="margin-bottom:10px;font-size:11px;color:var(--tx2);font-weight:700">Delta Exchange India</div>
   <div style="overflow-x:auto;margin-bottom:18px">
     <table class="htbl">
       <thead><tr><th>Symbol</th><th>Side</th><th>Type</th><th>Size</th><th>Price</th><th>Status</th><th>Time</th></tr></thead>
-      <tbody id="dh"><tr><td colspan="7" style="padding:16px;color:var(--tx3);text-align:center">Not loaded</td></tr></tbody>
+      <tbody id="dhTB"><tr><td colspan="7" style="padding:16px;color:var(--tx3);text-align:center">Not loaded</td></tr></tbody>
     </table>
   </div>
-  <div style="margin-bottom:10px;font-size:11px;color:var(--tx2);font-weight:700">Pi42</div>
+  <div style="margin-bottom:10px;font-size:11px;color:var(--tx2);font-weight:700">CoinDCX</div>
   <div style="overflow-x:auto">
     <table class="htbl">
       <thead><tr><th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th><th>Time</th></tr></thead>
-      <tbody id="ph"><tr><td colspan="7" style="padding:16px;color:var(--tx3);text-align:center">Not loaded</td></tr></tbody>
+      <tbody id="chTB"><tr><td colspan="7" style="padding:16px;color:var(--tx3);text-align:center">Not loaded</td></tr></tbody>
     </table>
   </div>
 </div>
 
-<!-- DEBUG -->
+<!-- TAB: DEBUG -->
 <div class="tc" id="tab-dbg">
   <div class="tb">
-    <button class="bload" onclick="runDbg()">Run API Debug Test</button>
-    <span style="font-size:10px;color:var(--tx3)">Diagnose exchange connectivity issues</span>
+    <button class="bload" onclick="runDbg()">Run Debug Test</button>
+    <span style="font-size:10px;color:var(--tx3)">Tests raw API responses from both exchanges</span>
   </div>
-  <div class="dbx" id="dbgP"><div id="dbgtxt"></div></div>
+  <div class="dbx" id="dbgB"><div id="dbtxt"></div></div>
 </div>
 
-<!-- MODAL -->
+<!-- ORDER MODAL -->
 <div class="ovr hidden" id="modal">
   <div class="mdl">
     <div class="mhd">
@@ -446,10 +447,10 @@ input[type=password]{padding-right:40px}
     </div>
     <div class="mbdy">
       <div class="minf">
-        <div class="mcard"><div class="mclbl">FUNDING DIFF (per 8h)</div><div class="mcval" id="mDif" style="color:var(--gd)">--</div></div>
+        <div class="mcard"><div class="mclbl">FUNDING DIFF (per 8h period)</div><div class="mcval" id="mDif" style="color:var(--gd)">--</div></div>
         <div class="mcard"><div class="mclbl">NET YIELD (after 0.10% fees)</div><div class="mcval" id="mYld">--</div></div>
-        <div class="mcard"><div class="mclbl">DELTA FUNDING</div><div class="mcval" id="mDF">--</div></div>
-        <div class="mcard"><div class="mclbl">PI42 FUNDING</div><div class="mcval" id="mPF">--</div></div>
+        <div class="mcard"><div class="mclbl">DELTA EXCHANGE FUNDING</div><div class="mcval" id="mDF">--</div></div>
+        <div class="mcard"><div class="mclbl">COINDCX FUNDING</div><div class="mcval" id="mCF">--</div></div>
       </div>
       <div class="mdirs">
         <div class="mdl2"><div class="mdlbl">LONG — BUY HERE</div><div class="mdex" id="mLng">--</div><div class="mdpx" id="mLngPx">$--</div></div>
@@ -470,7 +471,7 @@ input[type=password]{padding-right:40px}
         <div id="limRow" style="display:none" class="full">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <div><label>Delta Limit Price (USD)</label><input type="number" id="oLD" step="0.01"/></div>
-            <div><label>Pi42 Limit Price (USD)</label><input type="number" id="oLP" step="0.01"/></div>
+            <div><label>CoinDCX Limit Price (USD)</label><input type="number" id="oLC" step="0.01"/></div>
           </div>
         </div>
       </div>
@@ -484,94 +485,126 @@ input[type=password]{padding-right:40px}
 <div class="tw" id="tw"></div>
 
 <script>
-const S={url:'',dk:'',ds:'',pk:'',ps:'',opps:[],sel:null,ot:'market',inrR:84,advOpen:true,theme:localStorage.getItem('fa42_theme')||'dark'};
+const S={
+  url:'',dk:'',ds:'',ck:'',cs:'',
+  opps:[],sel:null,ot:'market',
+  advOpen:true,
+  theme:localStorage.getItem('fa5_theme')||'dark'
+};
 
+// ── INIT ────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
   applyTheme(S.theme);
-  const km={backendUrl:'url',deltaKey:'dk',deltaSecret:'ds',pi42Key:'pk',pi42Secret:'ps'};
+  const km={backendUrl:'url',deltaKey:'dk',deltaSecret:'ds',dcxKey:'ck',dcxSecret:'cs'};
   Object.entries(km).forEach(([id,sk])=>{
-    const v=localStorage.getItem('fa42_'+id);
+    const v=localStorage.getItem('fa5_'+id);
     if(v){S[sk]=v;const el=document.getElementById(id);if(el)el.value=v;}
   });
-  if(S.url){document.getElementById('cst').textContent='Saved: '+S.url;}
+  if(S.url) document.getElementById('cst').textContent='Saved: '+S.url;
   startClk();
 });
 
+// ── THEME ────────────────────────────────────────────
 function applyTheme(t){
   S.theme=t;
   document.documentElement.setAttribute('data-theme',t);
   document.getElementById('thmIco').innerHTML=t==='dark'?'&#9788;':'&#9790;';
-  localStorage.setItem('fa42_theme',t);
+  localStorage.setItem('fa5_theme',t);
 }
 document.getElementById('thmBtn').addEventListener('click',()=>applyTheme(S.theme==='dark'?'light':'dark'));
 document.getElementById('setBtn').addEventListener('click',()=>document.getElementById('sp').classList.toggle('open'));
 
+// ── SETTINGS ─────────────────────────────────────────
 function saveSettings(){
-  const km={backendUrl:'url',deltaKey:'dk',deltaSecret:'ds',pi42Key:'pk',pi42Secret:'ps'};
+  const km={backendUrl:'url',deltaKey:'dk',deltaSecret:'ds',dcxKey:'ck',dcxSecret:'cs'};
   Object.entries(km).forEach(([id,sk])=>{
     const el=document.getElementById(id);
-    if(el){S[sk]=el.value.trim();localStorage.setItem('fa42_'+id,S[sk]);}
+    if(el){S[sk]=el.value.trim();localStorage.setItem('fa5_'+id,S[sk]);}
   });
   toast('Settings saved','ok');
   document.getElementById('sp').classList.remove('open');
 }
 
+// ── API HELPER ───────────────────────────────────────
 async function api(path,body=null){
   if(!S.url) throw new Error('Backend URL not set. Open Settings.');
   const r=await fetch(S.url.replace(/\/$/,'')+path,{
     method:body?'POST':'GET',
     headers:{'Content-Type':'application/json'},
-    body:body?JSON.stringify({...body,deltaKey:S.dk,deltaSecret:S.ds,pi42Key:S.pk,pi42Secret:S.ps}):undefined
+    body:body?JSON.stringify({
+      ...body,
+      deltaKey:S.dk,deltaSecret:S.ds,
+      dcxKey:S.ck,dcxSecret:S.cs
+    }):undefined
   });
   if(!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
 
+// ── TEST CONNECTION ──────────────────────────────────
 async function testConn(){
   const el=document.getElementById('backendUrl');
   S.url=el.value.trim();
-  localStorage.setItem('fa42_backendUrl',S.url);
+  localStorage.setItem('fa5_backendUrl',S.url);
   const cs=document.getElementById('cst');
   cs.textContent='Testing...';cs.style.color='var(--tx3)';
   try{
     const d=await(await fetch(S.url.replace(/\/$/,'')+'/health')).json();
     if(d.status==='ok'){
-      cs.textContent='Connected — v'+d.version;cs.style.color='var(--gn)';
-      document.getElementById('cdB').className='cdot ok';
+      cs.textContent='Connected — v'+d.version;
+      cs.style.color='var(--gn)';
       document.getElementById('ctB').textContent='Backend: connected';
+      document.getElementById('ctB').style.color='var(--gn)';
       toast('Backend connected','ok');
     }
   }catch(e){
     cs.textContent='Failed: '+e.message;cs.style.color='var(--rd)';
-    document.getElementById('cdB').className='cdot fail';
+    document.getElementById('ctB').textContent='Backend: failed';
     toast('Backend not reachable','err');
   }
 }
 
+// ── SCAN ─────────────────────────────────────────────
 async function doScan(){
   if(!S.url){toast('Set Backend URL in Settings','err');document.getElementById('sp').classList.add('open');return;}
   const btn=document.getElementById('rfBtn');
-  btn.disabled=true;btn.textContent='Scanning...';
+  btn.disabled=true;btn.textContent='Scanning exchanges...';
   try{
     const d=await api('/api/scan',{});
-    S.opps=d.data||[];S.inrR=d.inrRate||84;
-    document.getElementById('cdD').className='cdot '+(d.deltaOk?'ok':'fail');
-    document.getElementById('ctD').textContent='Delta: '+(d.deltaOk?d.deltaCount+' coins':'FAILED');
-    document.getElementById('cdP').className='cdot '+(d.pi42Ok?'ok':'fail');
-    document.getElementById('ctP').textContent='Pi42: '+(d.pi42Ok?d.pi42Count+' coins':'FAILED — change Railway region');
-    document.getElementById('ctR').textContent='1 USD = '+S.inrR.toFixed(2)+' INR';
-    document.getElementById('brate').textContent='1 USD = '+S.inrR.toFixed(2)+' INR';
+    S.opps=d.data||[];
+
+    // Update exchange status dots
+    setExStatus('D', d.deltaOk, d.deltaCount);
+    setExStatus('C', d.dcxOk,   d.dcxCount);
+
     document.getElementById('lastUp').textContent=new Date().toLocaleTimeString();
     document.getElementById('sr').style.display='flex';
-    document.getElementById('warnBox').classList.toggle('show',d.pi42Blocked===true);
     updStats();renderGrid();renderAdv();
-    if(d.pi42Blocked) toast('Pi42 blocked — change Railway to Singapore region','warn');
-    else toast('Loaded '+S.opps.length+' pairs','ok');
+
+    if(!d.deltaOk) toast('Delta Exchange not responding','err');
+    else if(!d.dcxOk) toast('CoinDCX not responding — check Debug tab','warn');
+    else toast('Loaded '+S.opps.length+' matched pairs','ok');
+
     loadBal();
   }catch(e){toast('Scan error: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='Refresh Data';}
 }
 
+function setExStatus(ex, ok, count){
+  const dot=document.getElementById('dot'+ex);
+  const cnt=document.getElementById('cnt'+ex);
+  if(ok){
+    dot.className='exdot ok';
+    cnt.textContent=count+' coins';
+    cnt.style.color='var(--gn)';
+  }else{
+    dot.className='exdot fail';
+    cnt.textContent='failed';
+    cnt.style.color='var(--rd)';
+  }
+}
+
+// ── STATS ─────────────────────────────────────────────
 function updStats(){
   const o=S.opps;
   document.getElementById('stT').textContent=o.length;
@@ -581,6 +614,7 @@ function updStats(){
   document.getElementById('stY').textContent=o.filter(x=>x.netYield>0).length;
 }
 
+// ── ADVISOR ───────────────────────────────────────────
 function togAdv(){
   S.advOpen=!S.advOpen;
   document.getElementById('abd').style.display=S.advOpen?'':'none';
@@ -596,10 +630,10 @@ function renderAdv(){
   const p=document.getElementById('advP');
   if(!S.opps.length){p.classList.remove('show');return;}
   p.classList.add('show');
-  const rem=sToF(),h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60),tstr=h+'h '+m+'m';
+  const rem=sToF(),h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60),ts=h+'h '+m+'m';
   const scored=S.opps.filter(o=>o.netYield>0).sort((a,b)=>b.score-a.score).slice(0,3);
   if(!scored.length){
-    document.getElementById('atop').innerHTML='<div style="color:var(--tx3);font-size:11px;grid-column:1/-1">No profitable opportunity after fees right now.</div>';
+    document.getElementById('atop').innerHTML='<div style="color:var(--tx3);font-size:11px;grid-column:1/-1">No profitable opportunity after fees right now. Wait for next cycle.</div>';
     document.getElementById('arsn').innerHTML='';return;
   }
   const top=scored[0];
@@ -608,38 +642,43 @@ function renderAdv(){
       <div class="arnk">#${i+1}</div>
       <div class="acoin">${o.base}/USDT</div>
       <div class="asce ${o.scenarioType}">${o.scenario}</div>
-      <div class="adir"><span class="lt">L: ${o.longExchange}</span><br><span class="st">S: ${o.shortExchange}</span></div>
+      <div class="adir"><span class="lt">Long: ${o.longExchange}</span><br><span class="st">Short: ${o.shortExchange}</span></div>
       <div class="ayld">Net: +${o.netYield.toFixed(4)}%</div>
       ${i===0?`<button class="badv" onclick="openMF('${o.base}')">Trade This Now</button>`:''}
     </div>`).join('');
+
   let why='';
   if(top.scenarioType==='goldmine')
-    why=`<b>GOLDMINE on ${top.base}</b> — Short ${top.shortExchange} (positive rate, earn while short) AND Long ${top.longExchange} (negative rate, earn while long). Collect from BOTH sides. Gross: ${top.fundingDiff.toFixed(4)}%, Net: ${top.netYield.toFixed(4)}%.`;
+    why=`<b>GOLDMINE on ${top.base}</b> — Short ${top.shortExchange} (positive funding rate: ${(top.shortExchange==='Delta'?top.deltaFunding:top.dcxFunding).toFixed(4)}%, they pay you to be short) AND Long ${top.longExchange} (negative funding rate: ${(top.longExchange==='Delta'?top.deltaFunding:top.dcxFunding).toFixed(4)}%, they pay you to be long). Collect from BOTH sides every 8 hours. Gross: ${top.fundingDiff.toFixed(4)}%, Net after 0.10% fees: ${top.netYield.toFixed(4)}%.`;
   else if(top.scenarioType==='positive')
-    why=`<b>Both positive on ${top.base}</b> — Short ${top.shortExchange} (${Math.max(top.deltaFunding,top.pi42Funding).toFixed(4)}%) + Long ${top.longExchange} (${Math.min(top.deltaFunding,top.pi42Funding).toFixed(4)}%). Earn the rate spread.`;
+    why=`<b>Both positive on ${top.base}</b> — Short ${top.shortExchange} (higher positive rate: ${Math.max(top.deltaFunding,top.dcxFunding).toFixed(4)}%) and Long ${top.longExchange} (lower positive rate: ${Math.min(top.deltaFunding,top.dcxFunding).toFixed(4)}%). You earn the rate spread.`;
   else
-    why=`<b>Both negative on ${top.base}</b> — Short ${top.shortExchange} (less negative) + Long ${top.longExchange} (more negative). Long earns funding on the more negative side.`;
-  const urg=rem<1800?`<span style="color:var(--rd);font-weight:700">URGENT — ${tstr} left. Enter NOW.</span>`
-    :rem<3600?`<span style="color:var(--gd)">GOOD WINDOW — ${tstr} left. Enter within 20 min.</span>`
-    :`<span style="color:var(--tx2)">Early — ${tstr} until funding. Plan carefully.</span>`;
+    why=`<b>Both negative on ${top.base}</b> — Short ${top.shortExchange} (less negative: ${Math.max(top.deltaFunding,top.dcxFunding).toFixed(4)}%) and Long ${top.longExchange} (more negative: ${Math.min(top.deltaFunding,top.dcxFunding).toFixed(4)}%). Long earns funding on the more negative exchange.`;
+
+  const urg=rem<1800
+    ?`<span style="color:var(--rd);font-weight:700">URGENT — ${ts} left. Enter NOW or miss this cycle.</span>`
+    :rem<3600
+      ?`<span style="color:var(--gd)">GOOD WINDOW — ${ts} left. Enter within 20 min.</span>`
+      :`<span style="color:var(--tx2)">Early — ${ts} until funding. Plan carefully.</span>`;
   document.getElementById('arsn').innerHTML=why+'<br><br>Timing: '+urg;
 }
 
 function openMF(b){const o=S.opps.find(x=>x.base===b);if(o)openM(o);}
 
+// ── RENDER GRID ───────────────────────────────────────
 function renderGrid(){
   const min=parseFloat(document.getElementById('fdiff').value)||0;
   const data=S.opps.filter(o=>o.fundingDiff>=min);
   const g=document.getElementById('og');
   if(!data.length){
     g.innerHTML=S.opps.length===0
-      ?'<div class="empty">Press "Refresh Data" to scan.<br>Set Backend URL in Settings first.</div>'
-      :'<div class="empty">All filtered. Lower Min Diff %.</div>';
+      ?'<div class="empty">Press "Refresh Data" to scan.<br>Both exchanges are Indian — no IP blocking issues.</div>'
+      :'<div class="empty">All pairs filtered. Lower Min Diff %.</div>';
     return;
   }
   g.innerHTML=data.map(o=>{
     const dfc=o.deltaFunding>0?'fp':o.deltaFunding<0?'fn':'fz';
-    const pfc=o.pi42Funding>0?'fp':o.pi42Funding<0?'fn':'fz';
+    const cfc=o.dcxFunding>0?'fp':o.dcxFunding<0?'fn':'fz';
     const dc=o.fundingDiff>=0.05?'mh':'mu',yc=o.netYield>0?'mp':'mn';
     const bdg=o.scenarioType==='goldmine'?'<span class="cbdg cbg">GOLDMINE</span>'
       :o.scenarioType==='positive'?'<span class="cbdg cbp">Both +</span>'
@@ -649,8 +688,8 @@ function renderGrid(){
     return `<div class="oc ${o.scenarioType}" onclick='openM(${oj})'>
       <div class="chd"><div class="ccoin">${o.base}</div>${bdg}<div class="cchg ${chg>=0?'cup':'cdn'}">${chg>=0?'+':''}${chg.toFixed(2)}%</div></div>
       <div class="cpx">
-        <div class="cpxb"><div class="cexch">Delta (USD)</div><div class="cpval">$${fmt(o.deltaPrice)}</div><div class="cfund ${dfc}">${o.deltaFunding>0?'+':''}${o.deltaFunding.toFixed(4)}%</div></div>
-        <div class="cpxb"><div class="cexch">Pi42 (USD)</div><div class="cpval">$${fmt(o.pi42Price)}</div><div class="cfund ${pfc}">${o.pi42Funding>0?'+':''}${o.pi42Funding.toFixed(4)}%</div></div>
+        <div class="cpxb"><div class="cexch">Delta Exchange</div><div class="cpval">$${fmt(o.deltaPrice)}</div><div class="cfund ${dfc}">${o.deltaFunding>0?'+':''}${o.deltaFunding.toFixed(4)}%</div></div>
+        <div class="cpxb"><div class="cexch">CoinDCX</div><div class="cpval">$${fmt(o.dcxPrice)}</div><div class="cfund ${cfc}">${o.dcxFunding>0?'+':''}${o.dcxFunding.toFixed(4)}%</div></div>
       </div>
       <div class="cmet">
         <div class="met"><div class="ml">Diff %</div><div class="mv ${dc}">${o.fundingDiff.toFixed(4)}</div></div>
@@ -661,11 +700,12 @@ function renderGrid(){
         <div class="cdirs"><span class="dl">L: ${o.longExchange}</span><span class="ds">S: ${o.shortExchange}</span></div>
         <button class="btrd" onclick="event.stopPropagation();openM(${oj})">Trade</button>
       </div>
-      <div class="cvol">Vol: <span>${fmtV(o.volume)}</span> &nbsp; INR: <span>&#8377;${fmt(o.pi42PriceInr||0)}</span></div>
+      <div class="cvol">Vol: <span>${fmtV(o.volume)}</span></div>
     </div>`;
   }).join('');
 }
 
+// ── MODAL ─────────────────────────────────────────────
 function openM(o){
   S.sel=o;
   document.getElementById('modal').classList.remove('hidden');
@@ -675,12 +715,12 @@ function openM(o){
   document.getElementById('mYld').style.color=o.netYield>0?'var(--gn)':'var(--rd)';
   document.getElementById('mDF').textContent=(o.deltaFunding>0?'+':'')+o.deltaFunding.toFixed(5)+'%';
   document.getElementById('mDF').style.color=o.deltaFunding>0?'var(--gn)':'var(--rd)';
-  document.getElementById('mPF').textContent=(o.pi42Funding>0?'+':'')+o.pi42Funding.toFixed(5)+'%';
-  document.getElementById('mPF').style.color=o.pi42Funding>0?'var(--gn)':'var(--rd)';
+  document.getElementById('mCF').textContent=(o.dcxFunding>0?'+':'')+o.dcxFunding.toFixed(5)+'%';
+  document.getElementById('mCF').style.color=o.dcxFunding>0?'var(--gn)':'var(--rd)';
   document.getElementById('mLng').textContent=o.longExchange;
   document.getElementById('mShrt').textContent=o.shortExchange;
-  document.getElementById('mLngPx').textContent='$'+fmt(o.longExchange==='Delta'?o.deltaPrice:o.pi42Price);
-  document.getElementById('mShrtPx').textContent='$'+fmt(o.shortExchange==='Delta'?o.deltaPrice:o.pi42Price);
+  document.getElementById('mLngPx').textContent='$'+fmt(o.longExchange==='Delta'?o.deltaPrice:o.dcxPrice);
+  document.getElementById('mShrtPx').textContent='$'+fmt(o.shortExchange==='Delta'?o.deltaPrice:o.dcxPrice);
   document.getElementById('mSc').textContent=o.scenario;
   const rem=sToF();
   document.getElementById('mUrg').textContent=rem<1800?'URGENT — enter now':rem<3600?'Good window — enter soon':'Early — plan carefully';
@@ -695,40 +735,46 @@ function setT(t){
   document.getElementById('bMkt').classList.toggle('active',t==='market');
   document.getElementById('bLmt').classList.toggle('active',t==='limit');
   document.getElementById('limRow').style.display=t==='limit'?'block':'none';
-  if(t==='limit'&&S.sel){document.getElementById('oLD').value=S.sel.deltaPrice;document.getElementById('oLP').value=S.sel.pi42Price;}
+  if(t==='limit'&&S.sel){document.getElementById('oLD').value=S.sel.deltaPrice;document.getElementById('oLC').value=S.sel.dcxPrice;}
 }
 function calcN(){
   const o=S.sel;if(!o)return;
   const q=parseFloat(document.getElementById('oQty').value)||1;
-  document.getElementById('oNot').value='$'+((o.deltaPrice+o.pi42Price)/2*q).toFixed(2);
+  document.getElementById('oNot').value='$'+((o.deltaPrice+o.dcxPrice)/2*q).toFixed(2);
 }
 
+// ── EXECUTE ORDER ─────────────────────────────────────
 async function execOrd(){
   const o=S.sel;if(!o)return;
-  if(!S.dk||!S.pk){toast('Set API keys in Settings','err');return;}
+  if(!S.dk||!S.ck){toast('Set API keys in Settings','err');return;}
   const btn=document.getElementById('bExec');
   btn.disabled=true;btn.textContent='Placing both orders...';
   try{
     const res=await api('/api/order',{
-      deltaSymbol:o.deltaSymbol,pi42Symbol:o.pi42Symbol,deltaProductId:o.deltaProductId,
-      longExchange:o.longExchange,quantity:document.getElementById('oQty').value,
-      leverage:document.getElementById('oLev').value,orderType:S.ot,
+      deltaSymbol:o.deltaSymbol,dcxSymbol:o.dcxSymbol,
+      deltaProductId:o.deltaProductId,longExchange:o.longExchange,
+      quantity:document.getElementById('oQty').value,
+      leverage:document.getElementById('oLev').value,
+      orderType:S.ot,
       limitPriceDelta:document.getElementById('oLD').value||null,
-      limitPricePi42:document.getElementById('oLP').value||null
+      limitPriceDcx:document.getElementById('oLC').value||null
     });
     showRes(res);
-    toast(res.bothOk?'Both orders placed — '+res.latencyMs+'ms':'Partial fill — check results',res.bothOk?'ok':'warn');
+    toast(res.bothOk?'Both orders placed — '+res.latencyMs+'ms':'Check results below',res.bothOk?'ok':'warn');
   }catch(e){toast('Order error: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='Execute Both Orders Simultaneously';}
 }
 
 async function execExit(){
   const o=S.sel;if(!o)return;
-  if(!confirm('Close both positions for '+o.base+'?'))return;
+  if(!confirm('Exit both positions for '+o.base+'?'))return;
   const btn=document.querySelector('.bexitm');
   btn.disabled=true;btn.textContent='Closing...';
   try{
-    const res=await api('/api/exit',{deltaProductId:o.deltaProductId,pi42Symbol:o.pi42Symbol,longExchange:o.longExchange,quantity:document.getElementById('oQty').value});
+    const res=await api('/api/exit',{
+      deltaProductId:o.deltaProductId,dcxSymbol:o.dcxSymbol,
+      longExchange:o.longExchange,quantity:document.getElementById('oQty').value
+    });
     showRes(res);toast('Exit orders sent','ok');
   }catch(e){toast('Exit error: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='Exit Both Positions (Market)';}
@@ -737,94 +783,105 @@ async function execExit(){
 function showRes(res){
   const el=document.getElementById('ores');
   el.classList.add('show');
-  el.className='ores show '+(res.delta?.ok&&res.pi42?.ok?'rok':'rerr');
-  el.innerHTML=(res.latencyMs?`<div style="color:var(--tx3);font-size:9px;margin-bottom:7px">Latency: ${res.latencyMs}ms</div>`:'')+
+  el.className='ores show '+(res.delta?.ok&&res.dcx?.ok?'rok':'rerr');
+  el.innerHTML=(res.latencyMs?`<div style="color:var(--tx3);font-size:9px;margin-bottom:7px">Execution latency: ${res.latencyMs}ms</div>`:'')+
     `<div class="rsec"><div class="rlbl">DELTA EXCHANGE</div>
     <span style="color:${res.delta?.ok?'var(--gn)':'var(--rd)'};font-weight:700">${res.delta?.ok?'ORDER PLACED':'FAILED'}</span>
     ${res.delta?.orderId?'<br><small style="color:var(--tx3)">ID: '+res.delta.orderId+'</small>':''}
     ${!res.delta?.ok?'<br><small style="color:var(--tx3)">'+JSON.stringify(res.delta?.error)+'</small>':''}</div>
-    <div class="rsec"><div class="rlbl">PI42</div>
-    <span style="color:${res.pi42?.ok?'var(--gn)':'var(--rd)'};font-weight:700">${res.pi42?.ok?'ORDER PLACED':'FAILED'}</span>
-    ${res.pi42?.orderId?'<br><small style="color:var(--tx3)">ID: '+res.pi42.orderId+'</small>':''}
-    ${!res.pi42?.ok?'<br><small style="color:var(--tx3)">'+JSON.stringify(res.pi42?.error)+'</small>':''}</div>`;
+    <div class="rsec"><div class="rlbl">COINDCX</div>
+    <span style="color:${res.dcx?.ok?'var(--gn)':'var(--rd)'};font-weight:700">${res.dcx?.ok?'ORDER PLACED':'FAILED'}</span>
+    ${res.dcx?.orderId?'<br><small style="color:var(--tx3)">ID: '+res.dcx.orderId+'</small>':''}
+    ${!res.dcx?.ok?'<br><small style="color:var(--tx3)">'+JSON.stringify(res.dcx?.error)+'</small>':''}</div>`;
 }
 
+// ── POSITIONS ─────────────────────────────────────────
 async function loadPos(){
   if(!S.dk){toast('Set API keys','err');return;}
   try{
     const res=await api('/api/positions',{});
-    const rP=(ex,data)=>{
-      const el=document.getElementById(ex);
-      const items=ex==='dp'?(data?.result||data?.data||[]):(data?.data||data?.positions||[]);
+    const rP=(elId,data,isDelta)=>{
+      const el=document.getElementById(elId);
+      const items=isDelta?(data?.result||data?.data||[]):(data?.orders||data?.data||[]);
       if(!Array.isArray(items)||!items.length){el.innerHTML='<div style="padding:14px;color:var(--tx3);font-size:11px">No open positions</div>';return;}
       el.innerHTML=items.map(p=>{
-        const sym=p.product_symbol||p.symbol||'--';
+        const sym=p.product_symbol||p.market||p.symbol||'--';
         const sz=parseFloat(p.size||p.quantity||0);
-        const ep=parseFloat(p.entry_price||p.entryPrice||0);
+        const side=sz>0?'LONG':sz<0?'SHORT':(p.side||'--').toUpperCase();
+        const ep=parseFloat(p.entry_price||p.entryPrice||p.price||0);
         const pnl=parseFloat(p.unrealized_pnl||p.unrealisedPnl||p.pnl||0);
-        return `<div class="pit"><div class="psym">${sym} <span style="color:${sz>0?'var(--gn)':'var(--rd)'};font-size:10px">${sz>0?'LONG':'SHORT'}</span></div><div class="pmt">Size:<span>${Math.abs(sz)}</span> Entry:<span>$${fmt(ep)}</span> uPNL:<span style="color:${pnl>=0?'var(--gn)':'var(--rd)'}">${pnl.toFixed(4)}</span></div></div>`;
+        return `<div class="pit"><div class="psym">${sym} <span style="color:${side==='LONG'?'var(--gn)':'var(--rd)'};font-size:10px">${side}</span></div><div class="pmt">Size:<span>${Math.abs(sz)||sz}</span> Entry:<span>$${fmt(ep)}</span> uPNL:<span style="color:${pnl>=0?'var(--gn)':'var(--rd)'}">${pnl.toFixed(4)}</span></div></div>`;
       }).join('');
     };
-    rP('dp',res.delta);rP('pp',res.pi42);
+    rP('dpOS',res.delta,true);rP('cpOS',res.dcx,false);
   }catch(e){toast('Error: '+e.message,'err');}
 }
 
+// ── HISTORY ───────────────────────────────────────────
 async function loadHist(){
   if(!S.dk){toast('Set API keys','err');return;}
   try{
     const res=await api('/api/history',{});
-    const rH=(id,items)=>{
-      const tb=document.getElementById(id);
+    const rH=(tbId,items)=>{
+      const tb=document.getElementById(tbId);
       if(!Array.isArray(items)||!items.length){tb.innerHTML='<tr><td colspan="7" style="padding:16px;color:var(--tx3);text-align:center">No history</td></tr>';return;}
       tb.innerHTML=items.slice(0,50).map(o=>{
-        const sym=o.product_symbol||o.symbol||'--';
+        const sym=o.product_symbol||o.market||o.symbol||'--';
         const side=(o.side||o.orderSide||'').toUpperCase();
         const px=fmt(o.average_fill_price||o.price||o.avgFillPrice||0);
-        const ts=o.created_at||o.updateTime?new Date(o.created_at||o.updateTime).toLocaleString():'--';
+        const ts=o.created_at||o.timestamp?new Date(o.created_at||o.timestamp).toLocaleString():'--';
         return `<tr><td>${sym}</td><td class="${side.includes('BUY')?'sbb':'sbs'}">${side}</td><td style="color:var(--tx3)">${o.order_type||o.type||'--'}</td><td>${o.size||o.quantity||'--'}</td><td>$${px}</td><td style="color:var(--tx3)">${o.state||o.status||'--'}</td><td style="color:var(--tx3);font-size:10px">${ts}</td></tr>`;
       }).join('');
     };
-    rH('dh',res.delta?.result||[]);rH('ph',res.pi42?.data||res.pi42?.orders||[]);
+    rH('dhTB',res.delta?.result||[]);
+    rH('chTB',res.dcx?.trades||res.dcx?.data||res.dcx?.orders||[]);
   }catch(e){toast('Error: '+e.message,'err');}
 }
 
+// ── BALANCE ───────────────────────────────────────────
 async function loadBal(){
-  if(!S.dk&&!S.pk)return;
+  if(!S.dk&&!S.ck)return;
   try{
     const r=await api('/api/balance',{});
-    const du=parseFloat(r.deltaUsd||0),pu=parseFloat(r.pi42Usd||0);
+    const du=parseFloat(r.deltaUsd||0),cu=parseFloat(r.dcxUsd||0);
     document.getElementById('balD').textContent='$'+du.toFixed(2)+' USD';
-    document.getElementById('balP').textContent='$'+pu.toFixed(2)+' USD';
-    document.getElementById('balT').textContent='$'+(du+pu).toFixed(2)+' USD';
-    if(r.inrRate)document.getElementById('brate').textContent='1 USD = '+r.inrRate.toFixed(2)+' INR';
+    document.getElementById('balC').textContent='$'+cu.toFixed(2)+' USD';
+    document.getElementById('balT').textContent='$'+(du+cu).toFixed(2)+' USD';
   }catch(_){}
 }
 
+// ── DEBUG ─────────────────────────────────────────────
 async function runDbg(){
-  const p=document.getElementById('dbgP'),txt=document.getElementById('dbgtxt');
-  p.classList.add('show');txt.innerHTML='Testing...';
+  const p=document.getElementById('dbgB'),txt=document.getElementById('dbtxt');
+  p.classList.add('show');txt.innerHTML='Testing both exchanges...';
   try{
     const base=S.url.replace(/\/$/,'');
-    const dr=await fetch(base+'/debug/delta').then(r=>r.json());
-    const pr=await fetch(base+'/debug/pi42',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pi42Key:S.pk,pi42Secret:S.ps})}).then(r=>r.json());
-    let h='<b style="color:var(--gd)">DELTA EXCHANGE</b><br>';
+    const [dr,cr]=await Promise.all([
+      fetch(base+'/debug/delta').then(r=>r.json()),
+      fetch(base+'/debug/dcx').then(r=>r.json())
+    ]);
+    let h='<b style="color:var(--gd)">DELTA EXCHANGE INDIA</b><br>';
     if(dr.ok){
-      h+=`<span style="color:var(--gn)">Connected — ${dr.totalCount} coins</span><br>`;
-      (dr.sample||[]).forEach(s=>h+=`&nbsp;${s.base}: $${parseFloat(s.price||0).toFixed(4)} fund=${parseFloat(s.funding||0).toFixed(6)}<br>`);
+      h+=`<span style="color:var(--gn)">Connected — ${dr.count} perpetual futures found</span><br>`;
+      (dr.sample||[]).forEach(s=>h+=`&nbsp;${s.base}: $${parseFloat(s.price||0).toFixed(4)} &nbsp; funding=${parseFloat(s.funding||0).toFixed(6)}<br>`);
     }else h+=`<span style="color:var(--rd)">FAILED: ${dr.error}</span><br>`;
-    h+='<br><b style="color:var(--gd)">PI42</b><br>';
-    if(pr.ok){
-      h+=`<span style="color:var(--gn)">Connected via: ${pr.endpoint}</span><br>`;
-      h+=`Coins: ${pr.coinsFound}<br>Sample: ${(pr.sample||[]).map(s=>s.base).join(', ')}<br>`;
-    }else{
-      h+=`<span style="color:var(--rd)">FAILED: ${pr.error}</span><br>`;
-      if(pr.fix) h+=`<br><span style="color:var(--gd)">${pr.fix}</span>`;
-      if(!S.pk) h+=`<br><span style="color:var(--gd)">Pi42 API keys not saved — go to Settings first.</span>`;
-    }
+
+    h+='<br><b style="color:var(--gd)">COINDCX (Indian Exchange)</b><br>';
+    if(cr.ok){
+      h+=`<span style="color:var(--gn)">Connected — ${cr.totalTickers} total tickers, ${cr.futuresParsed} futures parsed</span><br>`;
+      if(cr.parsedCoins?.length) h+=`Futures coins: ${cr.parsedCoins.join(', ')}<br>`;
+      else h+=`<span style="color:var(--gd)">No futures coins parsed yet — CoinDCX futures symbols may differ. Check raw sample below.</span><br>`;
+      if(cr.rawSample?.length){
+        h+='<br>Raw ticker sample (first 5):<br>';
+        cr.rawSample.forEach(s=>h+=`&nbsp;${s.market} type=${s.type||'?'} price=${s.last_price||'?'}<br>`);
+      }
+    }else h+=`<span style="color:var(--rd)">FAILED: ${cr.error}</span><br>`;
+
     txt.innerHTML=h;
   }catch(e){txt.innerHTML='Error: '+e.message;}
 }
 
+// ── FUNDING CLOCK ─────────────────────────────────────
 function startClk(){
   function tick(){
     const n=new Date(),s=n.getUTCHours()*3600+n.getUTCMinutes()*60+n.getUTCSeconds();
@@ -836,11 +893,14 @@ function startClk(){
   tick();setInterval(tick,1000);
 }
 
+// ── TABS ──────────────────────────────────────────────
 function tab(id,btn){
   document.querySelectorAll('.tc').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.tabb').forEach(e=>e.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');btn.classList.add('active');
 }
+
+// ── HELPERS ───────────────────────────────────────────
 function eyeT(id,btn){const el=document.getElementById(id);el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'show':'hide';}
 function toast(msg,type='ok'){const w=document.getElementById('tw');const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;w.appendChild(t);setTimeout(()=>t.remove(),3800);}
 function pad(n){return String(n).padStart(2,'0')}
