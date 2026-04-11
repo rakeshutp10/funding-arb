@@ -1,7 +1,7 @@
 {
   "name": "funding-arb",
-  "version": "4.0.0",
-  "description": "Delta Neutral Funding Rate Arbitrage — Delta Exchange India + Pi42",
+  "version": "5.0.0",
+  "description": "Delta Neutral Funding Arbitrage — Delta Exchange India + CoinDCX",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "dependencies": {
