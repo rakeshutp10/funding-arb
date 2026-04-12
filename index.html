@@ -298,8 +298,8 @@ input[type=password]{padding-right:40px}
     </div>
     <div class="sbox">
       <div class="stl">Delta Exchange India</div>
-      <div style="background:rgba(255,176,32,.09);border:1px solid rgba(255,176,32,.3);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:10px;color:#ffb020;line-height:1.7">
-        Create API key with NO IP whitelist — leave IP field blank. IP whitelist causes "ip_not_whitelisted" error on orders.
+      <div style="background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.3);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:10px;color:#ffb020;line-height:1.6">
+        IMPORTANT: Create API key with NO IP whitelist (leave IP field blank). If you set an IP whitelist, Railway orders will fail with "ip_not_whitelisted" error.
       </div>
       <div class="fld">
         <label>API Key</label>
@@ -469,7 +469,7 @@ input[type=password]{padding-right:40px}
           </div>
         </div>
         <div><label>Leverage (x)</label><input type="number" id="oLev" value="5" min="1" max="100"/></div>
-        <div><label>Quantity (contracts)</label><input type="number" id="oQty" value="1" min="1" step="0.1" oninput="calcN()"/></div>
+        <div><label>Quantity (contracts) — CoinDCX min: 10</label><input type="number" id="oQty" value="10" min="1" step="1" oninput="calcN()"/></div>
         <div><label>Est. Notional (USD)</label><input type="text" id="oNot" readonly style="color:var(--tx3)"/></div>
         <div id="limRow" style="display:none" class="full">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -786,31 +786,28 @@ async function execExit(){
 function showRes(res){
   const el=document.getElementById('ores');
   el.classList.add('show');
-  const ok=res.delta?.ok && res.dcx?.ok;
+  const ok=res.delta?.ok&&res.dcx?.ok;
   el.className='ores show '+(ok?'rok':'rerr');
 
+  // Check for specific errors
   const dErr=JSON.stringify(res.delta?.error||'');
   const cErr=JSON.stringify(res.dcx?.error||'');
-  const ipErr=dErr.includes('ip_not_whitelisted');
-  const mgnErr=dErr.includes('insufficient_margin');
-  const qtyErr=cErr.includes('Quantity') || cErr.includes('quantity');
+  const ipBlocked=dErr.includes('ip_not_whitelisted');
+  const qtyErr=cErr.includes('Quantity') || cErr.includes('quantity') || cErr.includes('10');
 
-  let fixHints='';
-  if(ipErr) fixHints+=`<div style="margin-top:8px;padding:8px 10px;background:rgba(255,176,32,.1);border-radius:6px;font-size:10px;color:var(--gd);line-height:1.6">Delta IP Fix: india.delta.exchange → Account → API Keys → Delete current key → Create new → Leave IP Whitelist BLANK → Save new key in Settings.</div>`;
-  if(mgnErr) fixHints+=`<div style="margin-top:8px;padding:8px 10px;background:rgba(255,176,32,.1);border-radius:6px;font-size:10px;color:var(--gd)">Insufficient margin on Delta — add USDT to your Delta account.</div>`;
-  if(qtyErr) fixHints+=`<div style="margin-top:8px;padding:8px 10px;background:rgba(255,176,32,.1);border-radius:6px;font-size:10px;color:var(--gd)">CoinDCX quantity error — try increasing quantity. Minimum may be 1.0 or higher for this coin.</div>`;
+  let extra='';
+  if(ipBlocked) extra+=`<div style="margin-top:8px;padding:8px;background:rgba(255,176,32,.1);border-radius:6px;font-size:10px;color:#ffb020;line-height:1.6">Delta IP Fix: Go to india.delta.exchange → Account → API Keys → Delete current key → Create new key → Leave IP Whitelist BLANK → Copy new key to Settings.</div>`;
+  if(qtyErr) extra+=`<div style="margin-top:8px;padding:8px;background:rgba(255,176,32,.1);border-radius:6px;font-size:10px;color:#ffb020">CoinDCX minimum quantity is 10. Increase the Quantity field to 10 or more.</div>`;
 
-  el.innerHTML=
-    (res.latencyMs?`<div style="color:var(--tx3);font-size:9px;margin-bottom:7px">Latency: ${res.latencyMs}ms</div>`:'')+
+  el.innerHTML=(res.latencyMs?`<div style="color:var(--tx3);font-size:9px;margin-bottom:7px">Latency: ${res.latencyMs}ms</div>`:'')+
     `<div class="rsec"><div class="rlbl">DELTA EXCHANGE</div>
     <span style="color:${res.delta?.ok?'var(--gn)':'var(--rd)'};font-weight:700">${res.delta?.ok?'ORDER PLACED':'FAILED'}</span>
-    ${res.delta?.orderId?'<br><small style="color:var(--tx3)">Order ID: '+res.delta.orderId+'</small>':''}
+    ${res.delta?.orderId?'<br><small style="color:var(--tx3)">ID: '+res.delta.orderId+'</small>':''}
     ${!res.delta?.ok?'<br><small style="color:var(--tx3)">'+dErr+'</small>':''}</div>
     <div class="rsec"><div class="rlbl">COINDCX</div>
     <span style="color:${res.dcx?.ok?'var(--gn)':'var(--rd)'};font-weight:700">${res.dcx?.ok?'ORDER PLACED':'FAILED'}</span>
-    ${res.dcx?.orderId?'<br><small style="color:var(--tx3)">Order ID: '+res.dcx.orderId+'</small>':''}
-    ${!res.dcx?.ok?'<br><small style="color:var(--tx3)">'+cErr+'</small>':''}</div>`
-    +fixHints;
+    ${res.dcx?.orderId?'<br><small style="color:var(--tx3)">ID: '+res.dcx.orderId+'</small>':''}
+    ${!res.dcx?.ok?'<br><small style="color:var(--tx3)">'+cErr+'</small>':''}</div>`+extra;
 }
 
 // ── POSITIONS ─────────────────────────────────────────
@@ -878,42 +875,22 @@ async function runDbg(){
       fetch(base+'/debug/delta').then(r=>r.json()),
       fetch(base+'/debug/dcx').then(r=>r.json())
     ]);
-
     let h='<b style="color:var(--gd)">DELTA EXCHANGE INDIA</b><br>';
     if(dr.ok){
-      h+=`<span style="color:var(--gn)">Connected — ${dr.count||0} perpetual futures</span><br>`;
-      (dr.sample||[]).forEach(s=>{
-        h+=`&nbsp;${s.base}: $${parseFloat(s.price||0).toFixed(4)} funding=${parseFloat(s.funding||0).toFixed(6)}<br>`;
-      });
-    } else {
-      h+=`<span style="color:var(--rd)">FAILED: ${dr.error}</span><br>`;
-    }
+      h+=`<span style="color:var(--gn)">Connected — ${dr.count} perpetual futures found</span><br>`;
+      (dr.sample||[]).forEach(s=>h+=`&nbsp;${s.base}: $${parseFloat(s.price||0).toFixed(4)} &nbsp; funding=${parseFloat(s.funding||0).toFixed(6)}<br>`);
+    }else h+=`<span style="color:var(--rd)">FAILED: ${dr.error}</span><br>`;
 
-    h+='<br><b style="color:var(--gd)">COINDCX</b><br>';
+    h+='<br><b style="color:var(--gd)">COINDCX (Indian Exchange)</b><br>';
     if(cr.ok){
-      const withFund = cr.withFundingRate||0;
-      h+=`<span style="color:var(--gn)">Connected — ${cr.totalContracts||0} contracts, ${cr.totalParsed||0} parsed</span><br>`;
-      h+=`Coins with funding rate: <b style="color:${withFund>0?'var(--gn)':'var(--rd)'}">${withFund}</b><br>`;
-      h+=`Source: ${cr.fundingSource||'unknown'}<br>`;
-      if(cr.sampleCoins?.length) h+=`Coins: ${cr.sampleCoins.slice(0,8).join(', ')}<br>`;
-      if(cr.sample?.length){
-        h+='<br>Sample (with funding rates):<br>';
-        cr.sample.forEach(s=>{
-          const fr=parseFloat(s.fundingRate||0);
-          const frColor=fr!==0?'var(--gn)':'var(--rd)';
-          h+=`&nbsp;${s.base}: $${parseFloat(s.price||0).toFixed(4)} <span style="color:${frColor}">fund=${fr.toFixed(5)}</span><br>`;
-        });
+      h+=`<span style="color:var(--gn)">Connected — ${cr.totalTickers} total tickers, ${cr.futuresParsed} futures parsed</span><br>`;
+      if(cr.parsedCoins?.length) h+=`Futures coins: ${cr.parsedCoins.join(', ')}<br>`;
+      else h+=`<span style="color:var(--gd)">No futures coins parsed yet — CoinDCX futures symbols may differ. Check raw sample below.</span><br>`;
+      if(cr.rawSample?.length){
+        h+='<br>Raw ticker sample (first 5):<br>';
+        cr.rawSample.forEach(s=>h+=`&nbsp;${s.market} type=${s.type||'?'} price=${s.last_price||'?'}<br>`);
       }
-      if(withFund===0){
-        h+=`<br><span style="color:var(--rd);font-weight:700">All funding rates = 0. CoinDCX may not publish funding rates publicly. Matched pairs will show as opportunities but CoinDCX funding rate column will be 0.</span><br>`;
-      }
-      if(cr.debugLog?.length){
-        h+='<br>Debug log:<br>';
-        cr.debugLog.forEach(l=>h+=`&nbsp;${l}<br>`);
-      }
-    } else {
-      h+=`<span style="color:var(--rd)">FAILED: ${cr.error}</span><br>`;
-    }
+    }else h+=`<span style="color:var(--rd)">FAILED: ${cr.error}</span><br>`;
 
     txt.innerHTML=h;
   }catch(e){txt.innerHTML='Error: '+e.message;}
