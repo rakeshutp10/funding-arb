@@ -11,11 +11,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  DELTA EXCHANGE INDIA
-//  Public API — no key needed for market data
+//  Public market data — no auth needed for scan
 //  Auth — HMAC-SHA256 of method+ts+path+qs+body
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 const DELTA = 'https://api.india.delta.exchange';
 
 function dSign(secret, method, ep, qs, body, ts) {
@@ -27,7 +27,7 @@ async function dPub(ep, params = {}) {
   const qs = Object.keys(params).length ? '?' + new URLSearchParams(params) : '';
   const r  = await axios.get(DELTA + ep + qs, {
     timeout: 12000,
-    headers: { Accept: 'application/json', 'User-Agent': 'FundArb/8' }
+    headers: { Accept: 'application/json', 'User-Agent': 'FundArb/10' }
   });
   return r.data;
 }
@@ -41,7 +41,7 @@ async function dAuth(key, secret, method, ep, query = {}, body = null) {
     method, url: DELTA + ep + qs, timeout: 12000,
     headers: {
       'api-key': key, timestamp: ts, signature: sig,
-      'Content-Type': 'application/json', 'User-Agent': 'FundArb/8'
+      'Content-Type': 'application/json', 'User-Agent': 'FundArb/10'
     }
   };
   if (body) cfg.data = body;
@@ -54,6 +54,7 @@ function parseDelta(raw) {
   for (const t of (Array.isArray(list) ? list : [])) {
     const base = (t.underlying_asset_symbol || '').toUpperCase();
     if (!base) continue;
+    // funding_rate = decimal: 0.0001 means 0.01%
     const fr    = parseFloat(t.funding_rate || t.funding_rate_8h || 0);
     const price = parseFloat(t.mark_price || t.last_price || t.close || 0);
     if (price <= 0) continue;
@@ -70,227 +71,221 @@ function parseDelta(raw) {
   return map;
 }
 
-// ════════════════════════════════════════════════════════════
-//  COINSWITCH PRO (Indian Exchange)
-//  Base URL  : https://coinswitch.co
-//  Auth header: CS-ACCESS-KEY, CS-ACCESS-SIGN, CS-ACCESS-TIMESTAMP
-//  Signature : HMAC-SHA256 of (timestamp + method + path + body)
-//  Futures tickers: GET /trade/api/v2/futures/ticker
-//  Funding rates  : included in ticker or separate endpoint
-// ════════════════════════════════════════════════════════════
-const CS_BASE = 'https://coinswitch.co';
-const CS_ALT  = 'https://api.coinswitch.co';
+// ═══════════════════════════════════════════════════════
+//  PI42  (Indian Exchange)
+//  Works perfectly from Indian IP (Termux on phone)
+//  Base: https://fapi.pi42.com
+//  Auth: HMAC-SHA256 of sorted query params
+//  Market data endpoint: GET /v1/exchange/futures/contracts
+//  Ticker/price: GET /v1/market/tickers  or  /v1/ticker/24hr
+// ═══════════════════════════════════════════════════════
+const PI42 = 'https://fapi.pi42.com';
 
-function csSign(secret, ts, method, path, bodyStr) {
-  const msg = ts + method + path + (bodyStr || '');
-  return crypto.createHmac('sha256', secret).update(msg).digest('hex');
+function p42Sign(secret, params) {
+  // Sort keys, join as key=value&key=value, sign with HMAC-SHA256
+  const qs = Object.keys(params).sort()
+    .map(k => `${k}=${params[k]}`).join('&');
+  return crypto.createHmac('sha256', secret).update(qs).digest('hex');
 }
 
-function csHeaders(key, secret, method, path, bodyStr) {
-  const ts  = Date.now().toString();
-  const sig = csSign(secret, ts, method, path, bodyStr || '');
-  return {
-    'CS-ACCESS-KEY':       key,
-    'CS-ACCESS-SIGN':      sig,
-    'CS-ACCESS-TIMESTAMP': ts,
-    'Content-Type':        'application/json',
-    'Accept':              'application/json',
-    'User-Agent':          'FundArb/8',
-    'Origin':              'https://pro.coinswitch.co',
-    'Referer':             'https://pro.coinswitch.co/'
-  };
-}
-
-async function csPub(path, params = {}) {
+async function p42Pub(ep, params = {}) {
   const qs = Object.keys(params).length ? '?' + new URLSearchParams(params) : '';
-  for (const base of [CS_BASE, CS_ALT]) {
-    try {
-      const r = await axios.get(base + path + qs, {
-        timeout: 10000,
-        headers: {
-          Accept: 'application/json', 'User-Agent': 'FundArb/8',
-          'Origin': 'https://pro.coinswitch.co'
-        }
-      });
-      if (r.data) return { data: r.data, base };
-    } catch (_) {}
-  }
-  return null;
-}
-
-async function csAuth(key, secret, method, path, params = {}, body = null) {
-  const bodyStr = body ? JSON.stringify(body) : '';
-  const qs      = Object.keys(params).length ? '?' + new URLSearchParams(params) : '';
-  const fullPath = path + qs;
-  const hdrs     = csHeaders(key, secret, method.toUpperCase(), fullPath, bodyStr);
-
-  for (const base of [CS_BASE, CS_ALT]) {
-    try {
-      const cfg = { method, url: base + fullPath, timeout: 12000, headers: hdrs };
-      if (body) cfg.data = body;
-      const r = await axios(cfg);
-      return r.data;
-    } catch (e) {
-      if (e.response?.status === 401 || e.response?.status === 403) throw e; // auth error, don't retry
+  const r  = await axios.get(PI42 + ep + qs, {
+    timeout: 10000,
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
+      Origin: 'https://pi42.com', Referer: 'https://pi42.com/'
     }
-  }
-  throw new Error('CoinSwitch Pro unreachable');
+  });
+  return r.data;
 }
 
-// ────────────────────────────────────────────────────────────
-//  FETCH COINSWITCH PRO FUTURES DATA
-//  Strategy: try multiple known endpoints in order
-// ────────────────────────────────────────────────────────────
-async function fetchCS(key, secret) {
-  const result = { map: {}, ok: false, source: 'none', total: 0, withFunding: 0 };
+async function p42Auth(key, secret, method, ep, params = {}) {
+  const ts     = Date.now().toString();
+  const allP   = { ...params, timestamp: ts };
+  const sig    = p42Sign(secret, allP);
+  const cfg    = { method, timeout: 12000 };
+  const headers = {
+    'api-key': key,
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
+    Accept: 'application/json', Origin: 'https://pi42.com'
+  };
 
-  // All possible futures/ticker endpoints for CoinSwitch Pro
-  const pubEndpoints = [
-    '/trade/api/v2/futures/ticker',
-    '/trade/api/v2/futures/tickers',
-    '/trade/api/v2/futures/contracts',
-    '/trade/api/v2/futures/market_data',
-    '/trade/api/v2/ticker',
-    '/trade/api/v2/tickers',
-    '/pro/v1/futures/tickers',
-    '/pro/v1/futures/ticker',
+  if (method === 'GET') {
+    cfg.url    = PI42 + ep;
+    cfg.params = { ...allP, signature: sig };
+    cfg.headers = headers;
+  } else {
+    cfg.url     = PI42 + ep;
+    cfg.data    = { ...allP, signature: sig };
+    cfg.headers = { ...headers, 'Content-Type': 'application/json' };
+  }
+  const r = await axios(cfg);
+  return r.data;
+}
+
+// ─────────────────────────────────────────────────────────
+//  FETCH PI42 FUTURES DATA
+//  Pi42 prices are in INR. We show INR price directly.
+//  Funding rate is in percent already (e.g., 0.01 = 0.01%)
+// ─────────────────────────────────────────────────────────
+async function fetchPi42(key, secret) {
+  const result = { map:{}, ok:false, source:'none', total:0, withFunding:0 };
+
+  // Primary endpoints to try
+  const endpoints = [
+    '/v1/exchange/futures/contracts',
+    '/v1/market/tickers',
+    '/v1/ticker/24hr',
   ];
 
-  let raw = null;
-  for (const ep of pubEndpoints) {
-    const r = await csPub(ep);
-    if (r?.data) {
-      raw = r.data;
+  for (const ep of endpoints) {
+    try {
+      // Try authenticated first (avoids IP blocks), then public
+      let data = null;
+      if (key && secret) {
+        try {
+          const r = await p42Auth(key, secret, 'GET', ep);
+          data = r;
+        } catch (_) {}
+      }
+      if (!data) {
+        data = await p42Pub(ep);
+      }
+      if (!data) continue;
+
+      // Flatten response
+      let list = [];
+      if (Array.isArray(data))                 list = data;
+      else if (Array.isArray(data.data))        list = data.data;
+      else if (Array.isArray(data.result))      list = data.result;
+      else if (Array.isArray(data.tickers))     list = data.tickers;
+      else if (data.data && typeof data.data === 'object') {
+        list = Object.values(data.data);
+      } else if (typeof data === 'object') {
+        const vals = Object.values(data);
+        if (vals.length && typeof vals[0] === 'object') list = vals;
+      }
+
+      if (list.length === 0) continue;
+
+      result.total  = list.length;
       result.source = ep;
-      break;
-    }
+
+      for (const t of list) {
+        // Pi42 symbols: BTCINR, ETHINR, BTCUSDT etc
+        const sym = (t.symbol || t.contractName || t.pair || t.s || '').toUpperCase();
+
+        // Extract base asset
+        let base = (t.baseAsset || t.baseCurrency || t.baseSymbol || '').toUpperCase();
+        if (!base && sym) {
+          // Remove quote currency from end
+          base = sym.replace(/INR$|USDT$|USDC$/, '');
+        }
+        if (!base || base.length < 2 || base.length > 10) continue;
+
+        // Price in INR (Pi42 is INR-settled)
+        const priceInr = parseFloat(
+          t.lastPrice || t.last_price || t.markPrice || t.mark_price ||
+          t.price || t.close || t.c || t.lp || 0
+        );
+        if (priceInr <= 0) continue;
+
+        // Funding rate
+        // Pi42 may return as decimal (0.0001) or percent (0.01)
+        let fr = parseFloat(
+          t.lastFundingRate || t.last_funding_rate ||
+          t.fundingRate     || t.funding_rate      ||
+          t.currentFundingRate || t.fr || 0
+        );
+        // Normalize: if absolute value < 0.01 it's likely a decimal fraction
+        if (fr !== 0 && Math.abs(fr) < 0.01) fr = fr * 100;
+
+        const vol = parseFloat(t.volume24h || t.baseVolume || t.volume || t.v || 0);
+        const chg = parseFloat(t.priceChangePercent || t.change24h || t.P || t.priceChange || 0);
+
+        result.map[base] = {
+          symbol:      sym,
+          priceInr,    // INR price — show to user
+          price:       priceInr, // keep as INR for spread calc
+          fundingRate: +fr.toFixed(6),
+          volume24h:   vol,
+          change24h:   chg,
+          nextFunding: t.nextFundingTime || t.next_funding_time || null
+        };
+      }
+
+      if (Object.keys(result.map).length > 0) {
+        result.ok          = true;
+        result.withFunding = Object.values(result.map).filter(v => v.fundingRate !== 0).length;
+        return result;
+      }
+    } catch (_) {}
   }
-
-  // Try authenticated endpoints if public failed
-  if (!raw && key && secret) {
-    const authEndpoints = [
-      '/trade/api/v2/futures/ticker',
-      '/trade/api/v2/futures/contracts',
-      '/pro/v1/futures/tickers',
-    ];
-    for (const ep of authEndpoints) {
-      try {
-        const r = await csAuth(key, secret, 'GET', ep);
-        if (r) { raw = r; result.source = ep + ' (auth)'; break; }
-      } catch (_) {}
-    }
-  }
-
-  if (!raw) return result;
-
-  // Parse the response — CoinSwitch can return array or object
-  let list = [];
-  if (Array.isArray(raw))           list = raw;
-  else if (Array.isArray(raw.data)) list = raw.data;
-  else if (Array.isArray(raw.tickers)) list = raw.tickers;
-  else if (Array.isArray(raw.result))  list = raw.result;
-  else if (typeof raw === 'object') {
-    const vals = Object.values(raw);
-    if (vals.length && typeof vals[0] === 'object') list = vals;
-  }
-
-  result.total = list.length;
-
-  for (const t of list) {
-    // Symbol formats: "BTCUSDT", "BTC-USDT-PERP", "BTCUSDT_PERP"
-    const sym = (t.symbol || t.pair || t.market || t.instrument || '').toUpperCase();
-    if (!sym) continue;
-
-    // Extract base
-    let base = '';
-    if (sym.includes('-USDT-PERP') || sym.includes('_USDT_PERP'))
-      base = sym.split('-')[0].split('_')[0];
-    else if (sym.includes('_PERP'))
-      base = sym.replace('_PERP', '').replace(/USDT?$/, '');
-    else if (sym.endsWith('USDT'))
-      base = sym.replace('USDT', '');
-    else if (sym.includes('-USDT'))
-      base = sym.split('-USDT')[0];
-    else
-      base = (t.baseAsset || t.base_asset || t.base_currency || '').toUpperCase();
-
-    if (!base || base.length < 2 || base.length > 10) continue;
-
-    const price = parseFloat(
-      t.lastPrice || t.last_price || t.markPrice || t.mark_price ||
-      t.price || t.close || t.lp || 0
-    );
-    if (price <= 0) continue;
-
-    // Funding rate
-    let fr = parseFloat(
-      t.fundingRate || t.funding_rate || t.currentFundingRate ||
-      t.current_funding_rate || t.lastFundingRate || t.last_funding_rate || 0
-    );
-    if (fr !== 0 && Math.abs(fr) < 0.001) fr = fr * 100; // normalize
-
-    result.map[base] = {
-      symbol:      sym,
-      price,
-      fundingRate: +fr.toFixed(6),
-      volume24h:   parseFloat(t.volume || t.volume24h || t.base_volume || t.quoteVolume || 0),
-      change24h:   parseFloat(t.priceChangePercent || t.price_change_percent || t.change24h || t.change || 0),
-      nextFunding: t.nextFundingTime || t.next_funding_time || null
-    };
-  }
-
-  result.ok       = Object.keys(result.map).length > 0;
-  result.withFunding = Object.values(result.map).filter(v => v.fundingRate !== 0).length;
   return result;
 }
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  STRATEGY LOGIC
-//  Both negative: Long more-negative, Short less-negative
-//  Both positive: Short more-positive, Long less-positive
-//  Goldmine:      Short positive (earn), Long negative (earn)
-// ════════════════════════════════════════════════════════════
-function strategy(dR, cR) {
-  const FEES = 0.10; // 0.10% total round-trip
-  const diff = Math.abs(dR - cR);
-  const net  = +(diff - FEES).toFixed(6);
+//
+//  BOTH NEGATIVE (e.g., Delta -0.8%, Pi42 -0.4%):
+//    Long Delta (-0.8%)  → RECEIVE 0.8% funding per 8h
+//    Short Pi42  (-0.4%) → PAY 0.4% but fully hedges price
+//    Net = 0.8 - 0.4 - 0.10 fees = 0.3% per 8h
+//    Price direction doesn't matter — delta neutral
+//
+//  BOTH POSITIVE (e.g., Delta +0.5%, Pi42 +0.2%):
+//    Short Delta (+0.5%) → RECEIVE 0.5% per 8h
+//    Long Pi42   (+0.2%) → PAY 0.2% but hedges price
+//    Net = 0.5 - 0.2 - 0.10 = 0.2% per 8h
+//
+//  GOLDMINE — one positive, one negative:
+//    Short positive exchange → RECEIVE from both sides
+//    Long negative exchange  → RECEIVE from both sides
+//    Net = |positive| + |negative| - 0.10 fees
+// ═══════════════════════════════════════════════════════
+function strategy(dR, pR) {
+  const diff = Math.abs(dR - pR);
+  const net  = +(diff - 0.10).toFixed(6);
   let longEx, shortEx, scenario, scenarioType;
 
-  if (dR >= 0 && cR >= 0) {
+  if (dR >= 0 && pR >= 0) {
+    // Both positive → short the higher rate
     scenarioType = 'positive'; scenario = 'Both Positive';
-    dR >= cR ? (shortEx='Delta', longEx='CoinSwitch')
-             : (shortEx='CoinSwitch', longEx='Delta');
-  } else if (dR <= 0 && cR <= 0) {
+    if (dR >= pR) { shortEx = 'Delta'; longEx = 'Pi42'; }
+    else           { shortEx = 'Pi42';  longEx = 'Delta'; }
+  } else if (dR <= 0 && pR <= 0) {
+    // Both negative → long the MORE negative (earn more)
     scenarioType = 'negative'; scenario = 'Both Negative';
-    // Long on more-negative (lower), Short on less-negative (higher)
-    dR < cR ? (longEx='Delta', shortEx='CoinSwitch')
-            : (longEx='CoinSwitch', shortEx='Delta');
+    if (dR < pR) { longEx = 'Delta'; shortEx = 'Pi42'; }
+    else          { longEx = 'Pi42';  shortEx = 'Delta'; }
   } else {
+    // GOLDMINE → short positive, long negative
     scenarioType = 'goldmine'; scenario = 'GOLDMINE';
-    dR > 0 ? (shortEx='Delta', longEx='CoinSwitch')
-           : (shortEx='CoinSwitch', longEx='Delta');
+    if (dR > 0) { shortEx = 'Delta'; longEx = 'Pi42'; }
+    else         { shortEx = 'Pi42';  longEx = 'Delta'; }
   }
 
   return { longEx, shortEx, scenario, scenarioType, diff: +diff.toFixed(6), net };
 }
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  HEALTH
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 app.get('/health', (_req, res) =>
-  res.json({ status: 'ok', version: '8.0.0', ts: Date.now() }));
+  res.json({ status: 'ok', version: '10.0.0', ts: Date.now(), port: PORT }));
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  DEBUG
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 app.get('/debug/delta', async (_req, res) => {
   try {
-    const d   = await dPub('/v2/tickers', { contract_types: 'perpetual_futures' });
-    const map = parseDelta(d);
+    const d    = await dPub('/v2/tickers', { contract_types: 'perpetual_futures' });
+    const map  = parseDelta(d);
     const list = d?.result || d?.data || [];
     res.json({
-      ok: true, count: list.length,
-      parsed: Object.keys(map).length,
+      ok: true, count: list.length, parsed: Object.keys(map).length,
       sample: Object.entries(map).slice(0, 5).map(([b, v]) => ({
         base: b, price: v.price, fundingRate: v.fundingRate
       }))
@@ -298,69 +293,81 @@ app.get('/debug/delta', async (_req, res) => {
   } catch (e) { res.json({ ok: false, error: e.message }); }
 });
 
-app.post('/debug/cs', async (req, res) => {
-  const { csKey, csSecret } = req.body;
+app.post('/debug/pi42', async (req, res) => {
+  const { pi42Key, pi42Secret } = req.body;
   try {
-    const r = await fetchCS(csKey, csSecret);
+    const r = await fetchPi42(pi42Key, pi42Secret);
     res.json({
-      ok: r.ok, source: r.source,
-      total: r.total, parsed: Object.keys(r.map).length,
+      ok:          r.ok,
+      source:      r.source,
+      total:       r.total,
+      parsed:      Object.keys(r.map).length,
       withFunding: r.withFunding,
       sampleCoins: Object.keys(r.map).slice(0, 10),
-      sample: Object.entries(r.map).slice(0, 5).map(([b, v]) => ({
-        base: b, symbol: v.symbol, price: v.price, fundingRate: v.fundingRate
+      sample:      Object.entries(r.map).slice(0, 5).map(([b, v]) => ({
+        base: b, symbol: v.symbol,
+        priceInr: v.priceInr, fundingRate: v.fundingRate
       }))
     });
   } catch (e) { res.json({ ok: false, error: e.message }); }
 });
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  SCAN
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 app.post('/api/scan', async (req, res) => {
   try {
-    const { csKey, csSecret } = req.body;
-    const TAKER = 0.0005;
+    const { pi42Key, pi42Secret } = req.body;
 
-    const [dRaw, cRaw] = await Promise.allSettled([
+    const [dRaw, pRaw] = await Promise.allSettled([
       dPub('/v2/tickers', { contract_types: 'perpetual_futures' }),
-      fetchCS(csKey, csSecret)
+      fetchPi42(pi42Key, pi42Secret)
     ]);
 
     const deltaMap = dRaw.status === 'fulfilled' ? parseDelta(dRaw.value) : {};
-    const csMap    = cRaw.status  === 'fulfilled' && cRaw.value.ok ? cRaw.value.map : {};
+    const pi42Map  = pRaw.status === 'fulfilled' && pRaw.value.ok ? pRaw.value.map : {};
     const deltaOk  = Object.keys(deltaMap).length > 0;
-    const csOk     = Object.keys(csMap).length > 0;
+    const pi42Ok   = Object.keys(pi42Map).length  > 0;
 
-    const FEES = TAKER * 2 * 100;
     const opps = [];
 
     for (const [base, d] of Object.entries(deltaMap)) {
-      const c = csMap[base];
-      if (!c || d.price <= 0 || c.price <= 0) continue;
+      const p = pi42Map[base];
+      if (!p || d.price <= 0 || p.price <= 0) continue;
 
-      const dR = d.fundingRate, cR = c.fundingRate;
-      const { longEx, shortEx, scenario, scenarioType, diff, net } = strategy(dR, cR);
-      const avg = (d.price + c.price) / 2;
-      const spr = avg > 0 ? +((Math.abs(d.price - c.price) / avg) * 100).toFixed(4) : 0;
+      const { longEx, shortEx, scenario, scenarioType, diff, net } =
+        strategy(d.fundingRate, p.fundingRate);
+
+      // Note: Delta price is USD, Pi42 price is INR
+      // We show both separately, no USD conversion needed for strategy
+      // Spread calc only makes sense if both in same currency — skip or show as 0
+      const spr = 0; // Cannot compare USD vs INR price spread directly
 
       const now  = new Date();
       const sec  = now.getUTCHours()*3600 + now.getUTCMinutes()*60 + now.getUTCSeconds();
       const rem  = 8*3600 - (sec % (8*3600));
       const urg  = rem <= 1800 ? 'urgent' : rem <= 3600 ? 'soon' : 'normal';
-      const score = diff * (scenarioType === 'goldmine' ? 2.5 : 1)
-                        * (urg === 'urgent' ? 2 : urg === 'soon' ? 1.5 : 1);
+      const score = diff
+        * (scenarioType === 'goldmine' ? 2.5 : 1)
+        * (urg === 'urgent' ? 2.0 : urg === 'soon' ? 1.5 : 1.0);
 
       opps.push({
         base,
-        deltaSymbol: d.symbol, csSymbol: c.symbol,
+        deltaSymbol:    d.symbol,
+        pi42Symbol:     p.symbol,
         deltaProductId: d.productId,
-        deltaPrice: d.price, csPrice: c.price,
-        deltaFunding: dR, csFunding: cR,
-        fundingDiff: diff, netYield: net, spread: spr,
-        volume: +(Math.max(d.volume24h, c.volume24h)).toFixed(2),
-        deltaChange24h: d.change24h, csChange24h: c.change24h,
-        longExchange: longEx, shortExchange: shortEx,
+        deltaPrice:     d.price,    // USD
+        pi42PriceInr:   p.priceInr, // INR
+        deltaFunding:   d.fundingRate,
+        pi42Funding:    p.fundingRate,
+        fundingDiff:    diff,
+        netYield:       net,
+        spread:         spr,
+        volume:         +(Math.max(d.volume24h, p.volume24h)).toFixed(2),
+        deltaChange24h: d.change24h,
+        pi42Change24h:  p.change24h,
+        longExchange:   longEx,
+        shortExchange:  shortEx,
         scenario, scenarioType, urgency: urg, score
       });
     }
@@ -370,30 +377,30 @@ app.post('/api/scan', async (req, res) => {
     res.json({
       success: true, data: opps, count: opps.length,
       deltaCount: Object.keys(deltaMap).length,
-      csCount:    Object.keys(csMap).length,
-      deltaOk, csOk, ts: Date.now()
+      pi42Count:  Object.keys(pi42Map).length,
+      deltaOk, pi42Ok, ts: Date.now()
     });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  ORDER — fire both simultaneously
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 app.post('/api/order', async (req, res) => {
   const {
-    deltaKey, deltaSecret, csKey, csSecret,
-    deltaProductId, csSymbol, longExchange,
+    deltaKey, deltaSecret, pi42Key, pi42Secret,
+    deltaProductId, pi42Symbol, longExchange,
     quantity, leverage, orderType,
-    limitPriceDelta, limitPriceCs
+    limitPriceDelta, limitPricePi42
   } = req.body;
 
-  if (!deltaKey || !csKey)
+  if (!deltaKey || !pi42Key)
     return res.status(400).json({ success: false, error: 'API keys not set. Open Settings.' });
 
-  const dSide = longExchange === 'Delta'      ? 'buy'  : 'sell';
-  const cSide = longExchange === 'CoinSwitch' ? 'buy'  : 'sell';
+  const dSide = longExchange === 'Delta' ? 'buy'  : 'sell';
+  const pSide = longExchange === 'Pi42'  ? 'BUY'  : 'SELL';
 
   const dBody = {
     product_id: parseInt(deltaProductId),
@@ -404,44 +411,43 @@ app.post('/api/order', async (req, res) => {
   };
   if (leverage) dBody.leverage = String(leverage);
 
-  // CoinSwitch Pro order endpoint
-  const csOrderPath = '/trade/api/v2/futures/order';
-  const cBodyObj = {
-    symbol:    csSymbol,
-    side:      cSide.toUpperCase(),
-    type:      orderType === 'limit' ? 'LIMIT' : 'MARKET',
-    quantity:  parseFloat(quantity),
-    ...(leverage && { leverage: parseInt(leverage) }),
-    ...(orderType === 'limit' && limitPriceCs && { price: parseFloat(limitPriceCs) })
+  const pBody = {
+    symbol:   pi42Symbol,
+    side:     pSide,
+    type:     orderType === 'limit' ? 'LIMIT' : 'MARKET',
+    quantity: String(quantity),
+    leverage: leverage ? String(leverage) : '1',
+    ...(orderType === 'limit' && limitPricePi42 && { price: String(limitPricePi42) })
   };
 
   const t0 = Date.now();
-  const [dr, cr] = await Promise.allSettled([
+  const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'POST', '/v2/orders', {}, dBody),
-    csAuth(csKey, csSecret, 'POST', csOrderPath, {}, cBodyObj)
+    p42Auth(pi42Key, pi42Secret, 'POST', '/v1/order', pBody)
   ]);
 
   res.json({
-    success: true, latencyMs: Date.now() - t0,
-    bothOk:  dr.status === 'fulfilled' && cr.status === 'fulfilled',
+    success:   true,
+    latencyMs: Date.now() - t0,
+    bothOk:    dr.status === 'fulfilled' && pr.status === 'fulfilled',
     delta: dr.status === 'fulfilled'
       ? { ok: true,  orderId: dr.value?.result?.id || dr.value?.id }
       : { ok: false, error:   dr.reason?.response?.data || dr.reason?.message },
-    cs: cr.status === 'fulfilled'
-      ? { ok: true,  orderId: cr.value?.data?.orderId || cr.value?.orderId || cr.value?.id }
-      : { ok: false, error:   cr.reason?.response?.data || cr.reason?.message }
+    pi42: pr.status === 'fulfilled'
+      ? { ok: true,  orderId: pr.value?.data?.orderId || pr.value?.orderId }
+      : { ok: false, error:   pr.reason?.response?.data || pr.reason?.message }
   });
 });
 
-// ════════════════════════════════════════════════════════════
-//  EXIT
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+//  EXIT — close both simultaneously
+// ═══════════════════════════════════════════════════════
 app.post('/api/exit', async (req, res) => {
-  const { deltaKey, deltaSecret, csKey, csSecret,
-    deltaProductId, csSymbol, longExchange, quantity } = req.body;
+  const { deltaKey, deltaSecret, pi42Key, pi42Secret,
+    deltaProductId, pi42Symbol, longExchange, quantity } = req.body;
 
   const t0 = Date.now();
-  const [dr, cr] = await Promise.allSettled([
+  const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'POST', '/v2/orders', {}, {
       product_id:  parseInt(deltaProductId),
       size:        parseFloat(quantity),
@@ -449,60 +455,61 @@ app.post('/api/exit', async (req, res) => {
       order_type:  'market_order',
       reduce_only: true
     }),
-    csAuth(csKey, csSecret, 'POST', '/trade/api/v2/futures/order', {}, {
-      symbol:   csSymbol,
-      side:     longExchange === 'CoinSwitch' ? 'SELL' : 'BUY',
-      type:     'MARKET',
-      quantity: parseFloat(quantity),
-      reduceOnly: true
+    p42Auth(pi42Key, pi42Secret, 'POST', '/v1/order', {
+      symbol:     pi42Symbol,
+      side:       longExchange === 'Pi42' ? 'SELL' : 'BUY',
+      type:       'MARKET',
+      quantity:   String(quantity),
+      reduceOnly: 'true'
     })
   ]);
 
   res.json({
-    success: true, latencyMs: Date.now() - t0,
+    success:   true,
+    latencyMs: Date.now() - t0,
     delta: dr.status === 'fulfilled' ? { ok: true } : { ok: false, error: dr.reason?.message },
-    cs:    cr.status === 'fulfilled' ? { ok: true } : { ok: false, error: cr.reason?.message }
+    pi42:  pr.status === 'fulfilled' ? { ok: true } : { ok: false, error: pr.reason?.message }
   });
 });
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  POSITIONS
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 app.post('/api/positions', async (req, res) => {
-  const { deltaKey, deltaSecret, csKey, csSecret } = req.body;
-  const [dr, cr] = await Promise.allSettled([
+  const { deltaKey, deltaSecret, pi42Key, pi42Secret } = req.body;
+  const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'GET', '/v2/positions', { page_size: '50' }),
-    csAuth(csKey, csSecret, 'GET', '/trade/api/v2/futures/positions')
+    p42Auth(pi42Key, pi42Secret, 'GET', '/v1/account/positions')
   ]);
   res.json({
     delta: dr.status === 'fulfilled' ? dr.value : { error: dr.reason?.message },
-    cs:    cr.status === 'fulfilled' ? cr.value : { error: cr.reason?.message }
+    pi42:  pr.status === 'fulfilled' ? pr.value : { error: pr.reason?.message }
   });
 });
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  HISTORY
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 app.post('/api/history', async (req, res) => {
-  const { deltaKey, deltaSecret, csKey, csSecret } = req.body;
-  const [dr, cr] = await Promise.allSettled([
+  const { deltaKey, deltaSecret, pi42Key, pi42Secret } = req.body;
+  const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'GET', '/v2/orders', { state: 'closed', page_size: '50' }),
-    csAuth(csKey, csSecret, 'GET', '/trade/api/v2/futures/order/history', { limit: '50' })
+    p42Auth(pi42Key, pi42Secret, 'GET', '/v1/order/history', { limit: '50' })
   ]);
   res.json({
     delta: dr.status === 'fulfilled' ? dr.value : { error: dr.reason?.message },
-    cs:    cr.status === 'fulfilled' ? cr.value : { error: cr.reason?.message }
+    pi42:  pr.status === 'fulfilled' ? pr.value : { error: pr.reason?.message }
   });
 });
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  BALANCE
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 app.post('/api/balance', async (req, res) => {
-  const { deltaKey, deltaSecret, csKey, csSecret } = req.body;
-  const [dr, cr] = await Promise.allSettled([
+  const { deltaKey, deltaSecret, pi42Key, pi42Secret } = req.body;
+  const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'GET', '/v2/wallet/balances'),
-    csAuth(csKey, csSecret, 'GET', '/trade/api/v2/user/portfolio')
+    p42Auth(pi42Key, pi42Secret, 'GET', '/v1/account/balance')
   ]);
 
   let deltaUsd = 0;
@@ -512,25 +519,20 @@ app.post('/api/balance', async (req, res) => {
     deltaUsd   = parseFloat(usdt?.balance || 0);
   }
 
-  let csUsd = 0;
-  if (cr.status === 'fulfilled') {
-    const d = cr.value?.data || cr.value;
-    // CoinSwitch may return USDT balance in futures wallet
-    csUsd = parseFloat(
-      d?.futures_balance || d?.futuresBalance ||
-      d?.usdt_balance || d?.usdtBalance ||
-      d?.balance || 0
-    );
+  let pi42Inr = 0;
+  if (pr.status === 'fulfilled') {
+    const d  = pr.value?.data || pr.value;
+    pi42Inr  = parseFloat(d?.availableBalance || d?.balance || d?.walletBalance || 0);
   }
 
-  res.json({ deltaUsd, csUsd, total: deltaUsd + csUsd });
+  res.json({ deltaUsd, pi42Inr });
 });
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  SERVE FRONTEND
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 app.get('*', (_req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-app.listen(PORT, () =>
-  console.log(`FundArb v8 | Delta Exchange India + CoinSwitch Pro | Port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () =>
+  console.log(`FundArb v10 | Delta Exchange India + Pi42 | Port ${PORT}`));
