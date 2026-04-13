@@ -11,11 +11,26 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  USD/INR RATE  (cache 10 min)
+// ═══════════════════════════════════════════════════
+let INR_RATE = 84.0;
+let rateAt   = 0;
+
+async function getInrRate() {
+  if (Date.now() - rateAt < 10 * 60 * 1000) return INR_RATE;
+  try {
+    const r = await axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 5000 });
+    if (r.data?.rates?.INR) { INR_RATE = r.data.rates.INR; rateAt = Date.now(); }
+  } catch (_) {}
+  return INR_RATE;
+}
+
+// ═══════════════════════════════════════════════════
 //  DELTA EXCHANGE INDIA
-//  Public market data — no auth needed for scan
-//  Auth — HMAC-SHA256 of method+ts+path+qs+body
-// ═══════════════════════════════════════════════════════
+//  IP whitelist: set to 0.0.0.0 on Delta dashboard
+//  → works from any IP including Railway
+// ═══════════════════════════════════════════════════
 const DELTA = 'https://api.india.delta.exchange';
 
 function dSign(secret, method, ep, qs, body, ts) {
@@ -23,11 +38,11 @@ function dSign(secret, method, ep, qs, body, ts) {
     .update(method + ts + ep + qs + body).digest('hex');
 }
 
-async function dPub(ep, params = {}) {
+async function dGet(ep, params = {}) {
   const qs = Object.keys(params).length ? '?' + new URLSearchParams(params) : '';
   const r  = await axios.get(DELTA + ep + qs, {
     timeout: 12000,
-    headers: { Accept: 'application/json', 'User-Agent': 'FundArb/10' }
+    headers: { Accept: 'application/json', 'User-Agent': 'FundArb/11' }
   });
   return r.data;
 }
@@ -38,10 +53,15 @@ async function dAuth(key, secret, method, ep, query = {}, body = null) {
   const bs  = body ? JSON.stringify(body) : '';
   const sig = dSign(secret, method, ep, qs, bs, ts);
   const cfg = {
-    method, url: DELTA + ep + qs, timeout: 12000,
+    method,
+    url: DELTA + ep + qs,
+    timeout: 12000,
     headers: {
-      'api-key': key, timestamp: ts, signature: sig,
-      'Content-Type': 'application/json', 'User-Agent': 'FundArb/10'
+      'api-key':       key,
+      'timestamp':     ts,
+      'signature':     sig,
+      'Content-Type':  'application/json',
+      'User-Agent':    'FundArb/11'
     }
   };
   if (body) cfg.data = body;
@@ -52,17 +72,17 @@ function parseDelta(raw) {
   const list = raw?.result || raw?.data?.result || raw?.data || [];
   const map  = {};
   for (const t of (Array.isArray(list) ? list : [])) {
-    const base = (t.underlying_asset_symbol || '').toUpperCase();
+    const base  = (t.underlying_asset_symbol || '').toUpperCase();
     if (!base) continue;
-    // funding_rate = decimal: 0.0001 means 0.01%
-    const fr    = parseFloat(t.funding_rate || t.funding_rate_8h || 0);
     const price = parseFloat(t.mark_price || t.last_price || t.close || 0);
     if (price <= 0) continue;
+    // Delta returns funding_rate as decimal: 0.0001 = 0.01%
+    const fr = parseFloat(t.funding_rate || t.funding_rate_8h || 0);
     map[base] = {
       symbol:      t.symbol || '',
       productId:   t.id || t.product_id,
-      price,
-      fundingRate: +(fr * 100).toFixed(6),
+      price,                           // USD
+      fundingRate: +(fr * 100).toFixed(6), // convert to % e.g. 0.01
       volume24h:   parseFloat(t.volume || t.turnover_usd || 0),
       change24h:   parseFloat(t.price_change_percent || 0),
       nextFunding: t.next_funding_realization || null
@@ -71,147 +91,134 @@ function parseDelta(raw) {
   return map;
 }
 
-// ═══════════════════════════════════════════════════════
-//  PI42  (Indian Exchange)
-//  Works perfectly from Indian IP (Termux on phone)
-//  Base: https://fapi.pi42.com
-//  Auth: HMAC-SHA256 of sorted query params
-//  Market data endpoint: GET /v1/exchange/futures/contracts
-//  Ticker/price: GET /v1/market/tickers  or  /v1/ticker/24hr
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  PI42
+//  IP whitelist: set to 0.0.0.0 on Pi42 dashboard
+//  → works from any IP including Railway
+//  Pi42 prices are in INR — we convert to USD
+// ═══════════════════════════════════════════════════
 const PI42 = 'https://fapi.pi42.com';
 
-function p42Sign(secret, params) {
-  // Sort keys, join as key=value&key=value, sign with HMAC-SHA256
+function pSign(secret, params) {
   const qs = Object.keys(params).sort()
     .map(k => `${k}=${params[k]}`).join('&');
   return crypto.createHmac('sha256', secret).update(qs).digest('hex');
 }
 
-async function p42Pub(ep, params = {}) {
+async function pGet(ep, params = {}) {
   const qs = Object.keys(params).length ? '?' + new URLSearchParams(params) : '';
   const r  = await axios.get(PI42 + ep + qs, {
     timeout: 10000,
     headers: {
-      Accept: 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
-      Origin: 'https://pi42.com', Referer: 'https://pi42.com/'
+      Accept:       'application/json',
+      'User-Agent': 'FundArb/11',
+      Origin:       'https://pi42.com',
+      Referer:      'https://pi42.com/'
     }
   });
   return r.data;
 }
 
-async function p42Auth(key, secret, method, ep, params = {}) {
-  const ts     = Date.now().toString();
-  const allP   = { ...params, timestamp: ts };
-  const sig    = p42Sign(secret, allP);
-  const cfg    = { method, timeout: 12000 };
-  const headers = {
-    'api-key': key,
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
-    Accept: 'application/json', Origin: 'https://pi42.com'
+async function pAuth(key, secret, method, ep, params = {}) {
+  const ts   = Date.now().toString();
+  const all  = { ...params, timestamp: ts };
+  const sig  = pSign(secret, all);
+  const hdrs = {
+    'api-key':    key,
+    Accept:       'application/json',
+    'User-Agent': 'FundArb/11',
+    Origin:       'https://pi42.com'
   };
 
   if (method === 'GET') {
-    cfg.url    = PI42 + ep;
-    cfg.params = { ...allP, signature: sig };
-    cfg.headers = headers;
+    const r = await axios.get(PI42 + ep, {
+      params:  { ...all, signature: sig },
+      headers: hdrs,
+      timeout: 12000
+    });
+    return r.data;
   } else {
-    cfg.url     = PI42 + ep;
-    cfg.data    = { ...allP, signature: sig };
-    cfg.headers = { ...headers, 'Content-Type': 'application/json' };
+    const r = await axios.post(PI42 + ep,
+      { ...all, signature: sig },
+      { headers: { ...hdrs, 'Content-Type': 'application/json' }, timeout: 12000 }
+    );
+    return r.data;
   }
-  const r = await axios(cfg);
-  return r.data;
 }
 
-// ─────────────────────────────────────────────────────────
-//  FETCH PI42 FUTURES DATA
-//  Pi42 prices are in INR. We show INR price directly.
-//  Funding rate is in percent already (e.g., 0.01 = 0.01%)
-// ─────────────────────────────────────────────────────────
-async function fetchPi42(key, secret) {
-  const result = { map:{}, ok:false, source:'none', total:0, withFunding:0 };
+async function fetchPi42(key, secret, inrRate) {
+  const result = { map: {}, ok: false, source: 'none', total: 0, withFunding: 0 };
 
-  // Primary endpoints to try
   const endpoints = [
     '/v1/exchange/futures/contracts',
     '/v1/market/tickers',
-    '/v1/ticker/24hr',
+    '/v1/ticker/24hr'
   ];
 
   for (const ep of endpoints) {
     try {
-      // Try authenticated first (avoids IP blocks), then public
+      // Try authenticated (works with 0.0.0.0 whitelist from any IP)
       let data = null;
       if (key && secret) {
-        try {
-          const r = await p42Auth(key, secret, 'GET', ep);
-          data = r;
-        } catch (_) {}
+        try { data = await pAuth(key, secret, 'GET', ep); } catch (_) {}
       }
+      // Fallback to public
       if (!data) {
-        data = await p42Pub(ep);
+        try { data = await pGet(ep); } catch (_) {}
       }
       if (!data) continue;
 
-      // Flatten response
+      // Flatten response into array
       let list = [];
-      if (Array.isArray(data))                 list = data;
-      else if (Array.isArray(data.data))        list = data.data;
-      else if (Array.isArray(data.result))      list = data.result;
-      else if (Array.isArray(data.tickers))     list = data.tickers;
-      else if (data.data && typeof data.data === 'object') {
+      if (Array.isArray(data))                  list = data;
+      else if (Array.isArray(data.data))         list = data.data;
+      else if (Array.isArray(data.result))       list = data.result;
+      else if (Array.isArray(data.tickers))      list = data.tickers;
+      else if (data.data && typeof data.data === 'object' && !Array.isArray(data.data))
         list = Object.values(data.data);
-      } else if (typeof data === 'object') {
+      else if (typeof data === 'object') {
         const vals = Object.values(data);
         if (vals.length && typeof vals[0] === 'object') list = vals;
       }
 
-      if (list.length === 0) continue;
+      if (!list.length) continue;
 
       result.total  = list.length;
       result.source = ep;
 
       for (const t of list) {
-        // Pi42 symbols: BTCINR, ETHINR, BTCUSDT etc
         const sym = (t.symbol || t.contractName || t.pair || t.s || '').toUpperCase();
 
         // Extract base asset
         let base = (t.baseAsset || t.baseCurrency || t.baseSymbol || '').toUpperCase();
-        if (!base && sym) {
-          // Remove quote currency from end
-          base = sym.replace(/INR$|USDT$|USDC$/, '');
-        }
+        if (!base && sym) base = sym.replace(/INR$|USDT$|USDC$/, '');
         if (!base || base.length < 2 || base.length > 10) continue;
 
-        // Price in INR (Pi42 is INR-settled)
+        // Price in INR — convert to USD for comparison
         const priceInr = parseFloat(
           t.lastPrice || t.last_price || t.markPrice || t.mark_price ||
           t.price || t.close || t.c || t.lp || 0
         );
         if (priceInr <= 0) continue;
 
-        // Funding rate
-        // Pi42 may return as decimal (0.0001) or percent (0.01)
+        const priceUsd = inrRate > 0 ? priceInr / inrRate : 0;
+
+        // Funding rate normalization
         let fr = parseFloat(
           t.lastFundingRate || t.last_funding_rate ||
           t.fundingRate     || t.funding_rate      ||
           t.currentFundingRate || t.fr || 0
         );
-        // Normalize: if absolute value < 0.01 it's likely a decimal fraction
+        // If very small decimal (fraction), convert to percent
         if (fr !== 0 && Math.abs(fr) < 0.01) fr = fr * 100;
-
-        const vol = parseFloat(t.volume24h || t.baseVolume || t.volume || t.v || 0);
-        const chg = parseFloat(t.priceChangePercent || t.change24h || t.P || t.priceChange || 0);
 
         result.map[base] = {
           symbol:      sym,
-          priceInr,    // INR price — show to user
-          price:       priceInr, // keep as INR for spread calc
+          priceInr,
+          priceUsd,
           fundingRate: +fr.toFixed(6),
-          volume24h:   vol,
-          change24h:   chg,
+          volume24h:   parseFloat(t.volume24h || t.baseVolume || t.volume || t.v || 0),
+          change24h:   parseFloat(t.priceChangePercent || t.change24h || t.P || 0),
           nextFunding: t.nextFundingTime || t.next_funding_time || null
         };
       }
@@ -223,46 +230,46 @@ async function fetchPi42(key, secret) {
       }
     } catch (_) {}
   }
+
   return result;
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  STRATEGY LOGIC
 //
-//  BOTH NEGATIVE (e.g., Delta -0.8%, Pi42 -0.4%):
-//    Long Delta (-0.8%)  → RECEIVE 0.8% funding per 8h
-//    Short Pi42  (-0.4%) → PAY 0.4% but fully hedges price
-//    Net = 0.8 - 0.4 - 0.10 fees = 0.3% per 8h
-//    Price direction doesn't matter — delta neutral
+//  Both negative  (e.g. Delta -0.8%, Pi42 -0.4%):
+//    Long more-negative (Delta -0.8%) → earn 0.8% per 8h
+//    Short less-negative (Pi42 -0.4%) → pay 0.4%, hedges price
+//    Net = 0.8 - 0.4 - 0.10 (fees) = 0.3%
 //
-//  BOTH POSITIVE (e.g., Delta +0.5%, Pi42 +0.2%):
-//    Short Delta (+0.5%) → RECEIVE 0.5% per 8h
-//    Long Pi42   (+0.2%) → PAY 0.2% but hedges price
-//    Net = 0.5 - 0.2 - 0.10 = 0.2% per 8h
+//  Both positive (e.g. Delta +0.5%, Pi42 +0.2%):
+//    Short more-positive (Delta +0.5%) → earn 0.5% per 8h
+//    Long less-positive (Pi42 +0.2%)  → pay 0.2%, hedges price
+//    Net = 0.5 - 0.2 - 0.10 = 0.2%
 //
 //  GOLDMINE — one positive, one negative:
-//    Short positive exchange → RECEIVE from both sides
-//    Long negative exchange  → RECEIVE from both sides
-//    Net = |positive| + |negative| - 0.10 fees
-// ═══════════════════════════════════════════════════════
-function strategy(dR, pR) {
+//    Short positive exchange → earn funding
+//    Long negative exchange  → earn funding
+//    Net = |pos| + |neg| - 0.10
+// ═══════════════════════════════════════════════════
+function calcStrategy(dR, pR) {
   const diff = Math.abs(dR - pR);
   const net  = +(diff - 0.10).toFixed(6);
   let longEx, shortEx, scenario, scenarioType;
 
   if (dR >= 0 && pR >= 0) {
-    // Both positive → short the higher rate
-    scenarioType = 'positive'; scenario = 'Both Positive';
+    scenarioType = 'positive';
+    scenario     = 'Both Positive';
     if (dR >= pR) { shortEx = 'Delta'; longEx = 'Pi42'; }
     else           { shortEx = 'Pi42';  longEx = 'Delta'; }
   } else if (dR <= 0 && pR <= 0) {
-    // Both negative → long the MORE negative (earn more)
-    scenarioType = 'negative'; scenario = 'Both Negative';
-    if (dR < pR) { longEx = 'Delta'; shortEx = 'Pi42'; }
+    scenarioType = 'negative';
+    scenario     = 'Both Negative';
+    if (dR < pR) { longEx = 'Delta'; shortEx = 'Pi42'; }  // Delta more negative
     else          { longEx = 'Pi42';  shortEx = 'Delta'; }
   } else {
-    // GOLDMINE → short positive, long negative
-    scenarioType = 'goldmine'; scenario = 'GOLDMINE';
+    scenarioType = 'goldmine';
+    scenario     = 'GOLDMINE';
     if (dR > 0) { shortEx = 'Delta'; longEx = 'Pi42'; }
     else         { shortEx = 'Pi42';  longEx = 'Delta'; }
   }
@@ -270,58 +277,68 @@ function strategy(dR, pR) {
   return { longEx, shortEx, scenario, scenarioType, diff: +diff.toFixed(6), net };
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  HEALTH
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 app.get('/health', (_req, res) =>
-  res.json({ status: 'ok', version: '10.0.0', ts: Date.now(), port: PORT }));
+  res.json({ status: 'ok', version: '11.0.0', ts: Date.now(), port: PORT, inrRate: INR_RATE }));
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  DEBUG
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 app.get('/debug/delta', async (_req, res) => {
   try {
-    const d    = await dPub('/v2/tickers', { contract_types: 'perpetual_futures' });
+    const d    = await dGet('/v2/tickers', { contract_types: 'perpetual_futures' });
     const map  = parseDelta(d);
     const list = d?.result || d?.data || [];
     res.json({
-      ok: true, count: list.length, parsed: Object.keys(map).length,
+      ok:     true,
+      count:  list.length,
+      parsed: Object.keys(map).length,
       sample: Object.entries(map).slice(0, 5).map(([b, v]) => ({
-        base: b, price: v.price, fundingRate: v.fundingRate
+        base: b, priceUsd: v.price, fundingRate: v.fundingRate
       }))
     });
-  } catch (e) { res.json({ ok: false, error: e.message }); }
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
 });
 
 app.post('/debug/pi42', async (req, res) => {
   const { pi42Key, pi42Secret } = req.body;
   try {
-    const r = await fetchPi42(pi42Key, pi42Secret);
+    const inrRate = await getInrRate();
+    const r       = await fetchPi42(pi42Key, pi42Secret, inrRate);
     res.json({
       ok:          r.ok,
       source:      r.source,
       total:       r.total,
       parsed:      Object.keys(r.map).length,
       withFunding: r.withFunding,
+      inrRate,
       sampleCoins: Object.keys(r.map).slice(0, 10),
       sample:      Object.entries(r.map).slice(0, 5).map(([b, v]) => ({
         base: b, symbol: v.symbol,
-        priceInr: v.priceInr, fundingRate: v.fundingRate
+        priceInr: v.priceInr, priceUsd: +v.priceUsd.toFixed(4),
+        fundingRate: v.fundingRate
       }))
     });
-  } catch (e) { res.json({ ok: false, error: e.message }); }
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
 });
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  SCAN
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 app.post('/api/scan', async (req, res) => {
   try {
     const { pi42Key, pi42Secret } = req.body;
+    const inrRate = await getInrRate();
 
     const [dRaw, pRaw] = await Promise.allSettled([
-      dPub('/v2/tickers', { contract_types: 'perpetual_futures' }),
-      fetchPi42(pi42Key, pi42Secret)
+      dGet('/v2/tickers', { contract_types: 'perpetual_futures' }),
+      fetchPi42(pi42Key, pi42Secret, inrRate)
     ]);
 
     const deltaMap = dRaw.status === 'fulfilled' ? parseDelta(dRaw.value) : {};
@@ -329,65 +346,81 @@ app.post('/api/scan', async (req, res) => {
     const deltaOk  = Object.keys(deltaMap).length > 0;
     const pi42Ok   = Object.keys(pi42Map).length  > 0;
 
+    const FEES = 0.10; // 0.05% per side × 2 = 0.10%
     const opps = [];
 
     for (const [base, d] of Object.entries(deltaMap)) {
       const p = pi42Map[base];
-      if (!p || d.price <= 0 || p.price <= 0) continue;
+      if (!p) continue;
+      if (d.price <= 0 || p.priceUsd <= 0) continue;
 
-      const { longEx, shortEx, scenario, scenarioType, diff, net } =
-        strategy(d.fundingRate, p.fundingRate);
+      const dR  = d.fundingRate;
+      const pR  = p.fundingRate;
+      const { longEx, shortEx, scenario, scenarioType, diff, net } = calcStrategy(dR, pR);
 
-      // Note: Delta price is USD, Pi42 price is INR
-      // We show both separately, no USD conversion needed for strategy
-      // Spread calc only makes sense if both in same currency — skip or show as 0
-      const spr = 0; // Cannot compare USD vs INR price spread directly
+      // Spread: both prices now in USD
+      const avgUsd = (d.price + p.priceUsd) / 2;
+      const spread = avgUsd > 0
+        ? +((Math.abs(d.price - p.priceUsd) / avgUsd) * 100).toFixed(4)
+        : 0;
 
+      // Urgency
       const now  = new Date();
       const sec  = now.getUTCHours()*3600 + now.getUTCMinutes()*60 + now.getUTCSeconds();
       const rem  = 8*3600 - (sec % (8*3600));
       const urg  = rem <= 1800 ? 'urgent' : rem <= 3600 ? 'soon' : 'normal';
-      const score = diff
-        * (scenarioType === 'goldmine' ? 2.5 : 1)
-        * (urg === 'urgent' ? 2.0 : urg === 'soon' ? 1.5 : 1.0);
+      const urgW = urg === 'urgent' ? 2.0 : urg === 'soon' ? 1.5 : 1.0;
+      const scW  = scenarioType === 'goldmine' ? 2.5 : 1.0;
+      const score = diff * scW * urgW;
 
       opps.push({
         base,
         deltaSymbol:    d.symbol,
         pi42Symbol:     p.symbol,
         deltaProductId: d.productId,
-        deltaPrice:     d.price,    // USD
-        pi42PriceInr:   p.priceInr, // INR
-        deltaFunding:   d.fundingRate,
-        pi42Funding:    p.fundingRate,
+        // Prices
+        deltaPrice:     d.price,      // USD
+        pi42PriceUsd:   +p.priceUsd.toFixed(6),
+        pi42PriceInr:   p.priceInr,
+        // Funding
+        deltaFunding:   dR,
+        pi42Funding:    pR,
         fundingDiff:    diff,
         netYield:       net,
-        spread:         spr,
+        spread,
+        // Meta
         volume:         +(Math.max(d.volume24h, p.volume24h)).toFixed(2),
         deltaChange24h: d.change24h,
         pi42Change24h:  p.change24h,
+        // Strategy
         longExchange:   longEx,
         shortExchange:  shortEx,
-        scenario, scenarioType, urgency: urg, score
+        scenario, scenarioType, urgency: urg, score,
+        inrRate
       });
     }
 
     opps.sort((a, b) => b.score - a.score);
 
     res.json({
-      success: true, data: opps, count: opps.length,
+      success: true,
+      data:    opps,
+      count:   opps.length,
       deltaCount: Object.keys(deltaMap).length,
       pi42Count:  Object.keys(pi42Map).length,
-      deltaOk, pi42Ok, ts: Date.now()
+      deltaOk, pi42Ok,
+      inrRate,
+      ts: Date.now()
     });
   } catch (e) {
+    console.error('[SCAN]', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  ORDER — fire both simultaneously
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 app.post('/api/order', async (req, res) => {
   const {
     deltaKey, deltaSecret, pi42Key, pi42Secret,
@@ -423,7 +456,7 @@ app.post('/api/order', async (req, res) => {
   const t0 = Date.now();
   const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'POST', '/v2/orders', {}, dBody),
-    p42Auth(pi42Key, pi42Secret, 'POST', '/v1/order', pBody)
+    pAuth(pi42Key, pi42Secret, 'POST', '/v1/order', pBody)
   ]);
 
   res.json({
@@ -439,12 +472,14 @@ app.post('/api/order', async (req, res) => {
   });
 });
 
-// ═══════════════════════════════════════════════════════
-//  EXIT — close both simultaneously
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  EXIT
+// ═══════════════════════════════════════════════════
 app.post('/api/exit', async (req, res) => {
-  const { deltaKey, deltaSecret, pi42Key, pi42Secret,
-    deltaProductId, pi42Symbol, longExchange, quantity } = req.body;
+  const {
+    deltaKey, deltaSecret, pi42Key, pi42Secret,
+    deltaProductId, pi42Symbol, longExchange, quantity
+  } = req.body;
 
   const t0 = Date.now();
   const [dr, pr] = await Promise.allSettled([
@@ -455,7 +490,7 @@ app.post('/api/exit', async (req, res) => {
       order_type:  'market_order',
       reduce_only: true
     }),
-    p42Auth(pi42Key, pi42Secret, 'POST', '/v1/order', {
+    pAuth(pi42Key, pi42Secret, 'POST', '/v1/order', {
       symbol:     pi42Symbol,
       side:       longExchange === 'Pi42' ? 'SELL' : 'BUY',
       type:       'MARKET',
@@ -472,14 +507,14 @@ app.post('/api/exit', async (req, res) => {
   });
 });
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  POSITIONS
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 app.post('/api/positions', async (req, res) => {
   const { deltaKey, deltaSecret, pi42Key, pi42Secret } = req.body;
   const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'GET', '/v2/positions', { page_size: '50' }),
-    p42Auth(pi42Key, pi42Secret, 'GET', '/v1/account/positions')
+    pAuth(pi42Key, pi42Secret, 'GET', '/v1/account/positions')
   ]);
   res.json({
     delta: dr.status === 'fulfilled' ? dr.value : { error: dr.reason?.message },
@@ -487,14 +522,14 @@ app.post('/api/positions', async (req, res) => {
   });
 });
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  HISTORY
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 app.post('/api/history', async (req, res) => {
   const { deltaKey, deltaSecret, pi42Key, pi42Secret } = req.body;
   const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'GET', '/v2/orders', { state: 'closed', page_size: '50' }),
-    p42Auth(pi42Key, pi42Secret, 'GET', '/v1/order/history', { limit: '50' })
+    pAuth(pi42Key, pi42Secret, 'GET', '/v1/order/history', { limit: '50' })
   ]);
   res.json({
     delta: dr.status === 'fulfilled' ? dr.value : { error: dr.reason?.message },
@@ -502,14 +537,16 @@ app.post('/api/history', async (req, res) => {
   });
 });
 
-// ═══════════════════════════════════════════════════════
-//  BALANCE
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  BALANCE — Pi42 INR converted to USD
+// ═══════════════════════════════════════════════════
 app.post('/api/balance', async (req, res) => {
   const { deltaKey, deltaSecret, pi42Key, pi42Secret } = req.body;
+  const inrRate = await getInrRate();
+
   const [dr, pr] = await Promise.allSettled([
     dAuth(deltaKey, deltaSecret, 'GET', '/v2/wallet/balances'),
-    p42Auth(pi42Key, pi42Secret, 'GET', '/v1/account/balance')
+    pAuth(pi42Key, pi42Secret, 'GET', '/v1/account/balance')
   ]);
 
   let deltaUsd = 0;
@@ -519,20 +556,27 @@ app.post('/api/balance', async (req, res) => {
     deltaUsd   = parseFloat(usdt?.balance || 0);
   }
 
-  let pi42Inr = 0;
+  let pi42Inr = 0, pi42Usd = 0;
   if (pr.status === 'fulfilled') {
     const d  = pr.value?.data || pr.value;
     pi42Inr  = parseFloat(d?.availableBalance || d?.balance || d?.walletBalance || 0);
+    pi42Usd  = inrRate > 0 ? pi42Inr / inrRate : 0;
   }
 
-  res.json({ deltaUsd, pi42Inr });
+  res.json({
+    deltaUsd,
+    pi42Usd:  +pi42Usd.toFixed(2),
+    pi42Inr:  +pi42Inr.toFixed(2),
+    totalUsd: +(deltaUsd + pi42Usd).toFixed(2),
+    inrRate:  +inrRate.toFixed(2)
+  });
 });
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  SERVE FRONTEND
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 app.get('*', (_req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 app.listen(PORT, '0.0.0.0', () =>
-  console.log(`FundArb v10 | Delta Exchange India + Pi42 | Port ${PORT}`));
+  console.log(`FundArb v11 | Delta + Pi42 | Port ${PORT}`));
