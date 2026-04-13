@@ -1,6 +1,6 @@
 {
   "name": "fundarb",
-  "version": "10.0.0",
+  "version": "11.0.0",
   "description": "Delta Neutral Funding Arbitrage — Delta Exchange India + Pi42",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
