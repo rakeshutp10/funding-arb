@@ -1,6 +1,6 @@
 {
   "name": "fundarb",
-  "version": "12.0.0",
+  "version": "13.0.0",
   "description": "Delta Neutral Funding Arbitrage — Delta Exchange India + CoinDCX",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
