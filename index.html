@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>FundArb — Delta + CoinDCX</title>
+<title>FundArb v13 — Delta + CoinDCX</title>
 <style>
 :root{
   --bg:#07090f;--s1:#0d1120;--s2:#111728;--s3:#192035;
@@ -15,7 +15,7 @@
   --gdBg:rgba(245,168,0,.08);--gdBd:rgba(245,168,0,.28);
   --acBg:rgba(46,111,255,.10);
   --sh:0 4px 24px rgba(0,0,0,.55);
-  --r:8px;
+  --rad:8px;
   --f:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --m:'SF Mono','Fira Code','Consolas',monospace;
 }
@@ -32,9 +32,9 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:13px;-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--t1);font-family:var(--f);min-height:100vh;overflow-x:hidden;transition:background .2s,color .2s}
-button{cursor:pointer;font-family:var(--f);border:none;border-radius:var(--r);font-size:12px;transition:all .14s}
+button{cursor:pointer;font-family:var(--f);border:none;border-radius:var(--rad);font-size:12px;transition:all .14s}
 button:active{opacity:.74;transform:scale(.96)}
-input{background:var(--bg);border:1px solid var(--b2);color:var(--t1);border-radius:var(--r);font-size:12px;padding:7px 10px;width:100%;outline:none;font-family:var(--f)}
+input{background:var(--bg);border:1px solid var(--b2);color:var(--t1);border-radius:var(--rad);font-size:12px;padding:7px 10px;width:100%;outline:none;font-family:var(--f)}
 input:focus{border-color:var(--ac);box-shadow:0 0 0 2px var(--acBg)}
 label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 ::-webkit-scrollbar{width:3px;height:3px}
@@ -60,7 +60,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .sett.on{display:block}
 .sg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:500px){.sg{grid-template-columns:1fr}}
-.sb{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:12px}
+.sb{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:12px}
 .sb-t{font-size:10px;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
 .fld{margin-bottom:8px}
 .note{font-size:9px;color:var(--gd);background:var(--gdBg);border:1px solid var(--gdBd);border-radius:5px;padding:6px 8px;margin-bottom:10px;line-height:1.6}
@@ -109,7 +109,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .chip.cg{border-color:var(--gdBd);color:var(--gd)}.chip.cn{border-color:var(--gBd);color:var(--g)}.chip.cr{border-color:var(--rBd);color:var(--r)}
 
 /* ADVISOR */
-.adv{background:var(--s2);border:1px solid var(--gdBd);border-left:3px solid var(--gd);border-radius:var(--r);margin-bottom:16px;display:none}
+.adv{background:var(--s2);border:1px solid var(--gdBd);border-left:3px solid var(--gd);border-radius:var(--rad);margin-bottom:16px;display:none}
 .adv.on{display:block}
 .adv-hd{padding:9px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;border-bottom:1px solid var(--b1)}
 .adv-ico{width:16px;height:16px;background:var(--gdBg);border:1px solid var(--gdBd);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -118,7 +118,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .adv-body{padding:12px 14px}
 .atop{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:10px}
 @media(max-width:560px){.atop{grid-template-columns:1fr}}
-.ac{background:var(--s3);border:1px solid var(--b1);border-radius:var(--r);padding:10px;position:relative}
+.ac{background:var(--s3);border:1px solid var(--b1);border-radius:var(--rad);padding:10px;position:relative}
 .ac.top{border-color:var(--gdBd)}
 .ac-rk{position:absolute;top:6px;right:8px;font-size:9px;color:var(--t3);font-weight:700}
 .ac-coin{font-size:14px;font-weight:800;color:var(--t1);margin-bottom:3px}
@@ -127,13 +127,13 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .ac-dir{font-size:10px;color:var(--t2);line-height:1.7}
 .lt{color:var(--g);font-weight:700}.st{color:var(--r);font-weight:700}
 .ac-yld{font-size:12px;font-weight:700;color:var(--g);margin-top:5px}
-.adv-why{font-size:10px;color:var(--t2);line-height:1.8;background:var(--s3);border:1px solid var(--b1);border-radius:var(--r);padding:10px;margin-bottom:10px}
+.adv-why{font-size:10px;color:var(--t2);line-height:1.8;background:var(--s3);border:1px solid var(--b1);border-radius:var(--rad);padding:10px;margin-bottom:10px}
 .adv-why b{color:var(--gd)}
-.badv{background:var(--gdBg);color:var(--gd);border:1px solid var(--gdBd);padding:6px 12px;font-weight:700;font-size:11px;width:100%;margin-top:8px;border-radius:var(--r)}
+.badv{background:var(--gdBg);color:var(--gd);border:1px solid var(--gdBd);padding:6px 12px;font-weight:700;font-size:11px;width:100%;margin-top:8px;border-radius:var(--rad)}
 
 /* GRID */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(282px,1fr));gap:10px}
-.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:border-color .18s,box-shadow .18s}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rad);overflow:hidden;cursor:pointer;transition:border-color .18s,box-shadow .18s}
 .card:hover{border-color:var(--b2);box-shadow:var(--sh)}
 .card.goldmine{border-left:3px solid var(--gd)}.card.positive{border-left:3px solid var(--g)}.card.negative{border-left:3px solid var(--r)}
 .chd{padding:9px 12px 8px;background:var(--s2);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:7px}
@@ -172,14 +172,14 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .mcls{background:var(--s2);color:var(--t2);width:26px;height:26px;border-radius:6px;font-size:15px;display:flex;align-items:center;justify-content:center}
 .mbdy{padding:14px 16px 26px}
 .minf{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.mc{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:9px 11px}
+.mc{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:9px 11px}
 .mcl{font-size:9px;color:var(--t3);margin-bottom:3px;text-transform:uppercase}
 .mcv{font-size:13px;font-weight:800;font-family:var(--m)}
-.lbox{background:var(--gdBg);border:1px solid var(--gdBd);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-size:10px;color:var(--t1);line-height:1.8}
+.lbox{background:var(--gdBg);border:1px solid var(--gdBd);border-radius:var(--rad);padding:10px 12px;margin-bottom:12px;font-size:10px;color:var(--t1);line-height:1.8}
 .lbox b{color:var(--gd)}
 .mdirs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.mlong{background:var(--gBg);border:2px solid var(--gBd);border-radius:var(--r);padding:10px;text-align:center}
-.mshort{background:var(--rBg);border:2px solid var(--rBd);border-radius:var(--r);padding:10px;text-align:center}
+.mlong{background:var(--gBg);border:2px solid var(--gBd);border-radius:var(--rad);padding:10px;text-align:center}
+.mshort{background:var(--rBg);border:2px solid var(--rBd);border-radius:var(--rad);padding:10px;text-align:center}
 .mdl{font-size:9px;color:var(--t3);letter-spacing:.3px;margin-bottom:3px}
 .mde{font-size:14px;font-weight:800}
 .mlong .mde{color:var(--g)}.mshort .mde{color:var(--r)}
@@ -189,12 +189,12 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .tbtns{display:flex;gap:4px}
 .tyb{flex:1;padding:7px;background:var(--s2);color:var(--t2);border:1px solid var(--b1)}
 .tyb.on{background:var(--ac);color:#fff;border-color:var(--ac)}
-.bexec{width:100%;padding:13px;background:var(--g);color:#fff;font-weight:800;font-size:13px;border-radius:var(--r);margin-top:10px}
+.bexec{width:100%;padding:13px;background:var(--g);color:#fff;font-weight:800;font-size:13px;border-radius:var(--rad);margin-top:10px}
 .bexec:hover{filter:brightness(1.1)}
 .bexec:disabled{background:var(--s3);color:var(--t3);cursor:not-allowed;transform:none}
-.bexit{width:100%;padding:9px;background:transparent;color:var(--r);border:1px solid var(--rBd);font-weight:700;font-size:12px;border-radius:var(--r);margin-top:6px}
+.bexit{width:100%;padding:9px;background:transparent;color:var(--r);border:1px solid var(--rBd);font-weight:700;font-size:12px;border-radius:var(--rad);margin-top:6px}
 .bexit:hover{background:var(--rBg)}
-.ores{margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:var(--r);font-size:11px;word-break:break-all;display:none}
+.ores{margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:var(--rad);font-size:11px;word-break:break-all;display:none}
 .ores.on{display:block}
 .rok{border-left:3px solid var(--g)}.rerr{border-left:3px solid var(--r)}
 .rsec{margin-bottom:8px}
@@ -204,7 +204,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 /* POSITIONS / HISTORY */
 .twin{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:520px){.twin{grid-template-columns:1fr}}
-.ebox{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden}
+.ebox{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);overflow:hidden}
 .ebhd{padding:8px 12px;background:var(--s3);border-bottom:1px solid var(--b1);font-size:11px;font-weight:700;color:var(--ac)}
 .pit{padding:10px 12px;border-bottom:1px solid var(--b1)}.pit:last-child{border-bottom:none}
 .psym{font-weight:700;font-size:12px;margin-bottom:4px}
@@ -214,13 +214,31 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .htbl td{padding:8px 10px;border-bottom:1px solid var(--b1);color:var(--t1)}
 .sbb{color:var(--g);font-weight:700}.sbs{color:var(--r);font-weight:700}
 
-/* DEBUG */
-.dbx{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:12px;display:none;font-size:10px;font-family:var(--m);line-height:1.9;word-break:break-all}
-.dbx.on{display:block}
+/* ── DEBUG PANEL ─────────────────────────────────────── */
+.dbg-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.dbg-btns button{background:var(--s2);border:1px solid var(--b1);color:var(--t2);padding:7px 14px;font-size:11px}
+.dbg-btns button:hover{color:var(--t1);border-color:var(--b2)}
+.dbg-btns button.primary{background:var(--ac);color:#fff;border-color:var(--ac)}
+
+/* probe table */
+.probe-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:var(--m)}
+.probe-tbl th{background:var(--s3);color:var(--t3);text-align:left;padding:6px 10px;border-bottom:1px solid var(--b1);font-size:9px;text-transform:uppercase;letter-spacing:.4px}
+.probe-tbl td{padding:7px 10px;border-bottom:1px solid var(--b1);vertical-align:top;word-break:break-all}
+.probe-tbl tr:last-child td{border-bottom:none}
+.pok{color:var(--g);font-weight:700}.pfail{color:var(--r);font-weight:700}
+.pms{color:var(--t3);font-size:10px}
+
+/* step log */
+.step-log{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:12px;font-size:10px;font-family:var(--m);line-height:2;word-break:break-all;max-height:400px;overflow-y:auto;display:none}
+.step-log.on{display:block}
+.sl-ok{color:var(--g)}.sl-err{color:var(--r)}.sl-hd{color:var(--gd);font-weight:700}
+.sl-info{color:var(--t2)}
+
+.sec-title{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:14px}
 
 /* TOAST */
 .toasts{position:fixed;bottom:20px;right:14px;display:flex;flex-direction:column;gap:8px;z-index:999}
-.toast{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:10px 14px;font-size:11px;max-width:280px;animation:tin .2s;color:var(--t1)}
+.toast{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rad);padding:10px 14px;font-size:11px;max-width:280px;animation:tin .2s;color:var(--t1)}
 .toast.ok{border-left:3px solid var(--g)}.toast.err{border-left:3px solid var(--r)}.toast.warn{border-left:3px solid var(--gd)}
 @keyframes tin{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
 </style>
@@ -268,14 +286,14 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
     <div class="sb">
       <div class="sb-t">Delta Exchange India — API Keys</div>
       <div class="note">Keys are stored in Railway Variables — not here. This just shows connection status.</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">Set these in Railway → your service → Variables tab:<br>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">Set in Railway → your service → Variables:<br>
       <b style="color:var(--t1)">DELTA_KEY</b> = your Delta API key<br>
       <b style="color:var(--t1)">DELTA_SECRET</b> = your Delta API secret</div>
     </div>
     <div class="sb">
       <div class="sb-t">CoinDCX — API Keys</div>
       <div class="note">Keys are stored in Railway Variables — not here. This just shows connection status.</div>
-      <div style="font-size:10px;color:var(--t2);line-height:1.7">Set these in Railway → your service → Variables tab:<br>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">Set in Railway → your service → Variables:<br>
       <b style="color:var(--t1)">DCX_KEY</b> = your CoinDCX API key<br>
       <b style="color:var(--t1)">DCX_SECRET</b> = your CoinDCX API secret</div>
     </div>
@@ -302,9 +320,10 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
   <button class="tab on" onclick="goTab('opp',this)">Opportunities</button>
   <button class="tab" onclick="goTab('pos',this)">Positions</button>
   <button class="tab" onclick="goTab('hist',this)">History</button>
-  <button class="tab" onclick="goTab('dbg',this)">Debug</button>
+  <button class="tab" onclick="goTab('dbg',this)">🔍 Debug</button>
 </div>
 
+<!-- OPPORTUNITIES -->
 <div class="pane on" id="pane-opp">
   <div class="tbar">
     <button class="bscan" id="scanBtn" onclick="doScan()">Refresh Data</button>
@@ -334,6 +353,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
   </div>
 </div>
 
+<!-- POSITIONS -->
 <div class="pane" id="pane-pos">
   <div class="tbar"><button class="bsm" onclick="loadPos()">Load Positions</button></div>
   <div class="twin">
@@ -342,6 +362,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
   </div>
 </div>
 
+<!-- HISTORY -->
 <div class="pane" id="pane-hist">
   <div class="tbar"><button class="bsm" onclick="loadHist()">Load History</button></div>
   <div style="margin-bottom:10px;font-size:11px;color:var(--t2);font-weight:600">Delta Exchange India</div>
@@ -356,14 +377,18 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
   </div>
 </div>
 
+<!-- DEBUG -->
 <div class="pane" id="pane-dbg">
-  <div class="tbar">
-    <button class="bsm" onclick="runDbg()">Run Debug Test</button>
-    <span style="font-size:10px;color:var(--t3)">Tests raw API from both exchanges</span>
+  <div class="dbg-btns">
+    <button class="primary" onclick="runDbgFull()">▶ Full Debug Test</button>
+    <button onclick="runRawProbe()">🔬 Raw Endpoint Probe</button>
+    <button onclick="runDbgDelta()">Delta Only</button>
+    <button onclick="runDbgDcx()">CoinDCX Only</button>
   </div>
-  <div class="dbx" id="dbgBox"></div>
+  <div id="dbgBox" class="step-log"></div>
 </div>
 
+<!-- MODAL -->
 <div class="ovr off" id="modal">
   <div class="modal">
     <div class="mhd"><div class="mttl" id="mTtl">Open Delta Neutral Position</div><button class="mcls" onclick="closeM()">&#x2715;</button></div>
@@ -403,28 +428,28 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 <div class="toasts" id="toasts"></div>
 
 <script>
-const S={url:'',opps:[],sel:null,ot:'market',advOpen:true,theme:localStorage.getItem('fa12_t')||'d'};
+const S={url:'',opps:[],sel:null,ot:'market',advOpen:true,theme:localStorage.getItem('fa13_t')||'d'};
 
 window.addEventListener('DOMContentLoaded',()=>{
   applyTh(S.theme);
-  const v=localStorage.getItem('fa12_url');
+  const v=localStorage.getItem('fa13_url');
   if(v){S.url=v;const el=document.getElementById('backendUrl');if(el)el.value=v;document.getElementById('cst').textContent='Saved: '+v;}
   startClk();
 });
 
-function applyTh(t){S.theme=t;document.documentElement.setAttribute('data-t',t);document.getElementById('thmBtn').innerHTML=t==='d'?'&#9788;':'&#9790;';localStorage.setItem('fa12_t',t);}
+function applyTh(t){S.theme=t;document.documentElement.setAttribute('data-t',t);document.getElementById('thmBtn').innerHTML=t==='d'?'&#9788;':'&#9790;';localStorage.setItem('fa13_t',t);}
 document.getElementById('thmBtn').onclick=()=>applyTh(S.theme==='d'?'l':'d');
 document.getElementById('setBtn').onclick=()=>document.getElementById('sett').classList.toggle('on');
 
 async function api(path,body=null){
   if(!S.url)throw new Error('Backend URL not set. Open Settings.');
   const r=await fetch(S.url.replace(/\/$/,'')+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
-  if(!r.ok)throw new Error('HTTP '+r.status);
+  if(!r.ok)throw new Error('HTTP '+r.status+' from '+path);
   return r.json();
 }
 
 async function testConn(){
-  const el=document.getElementById('backendUrl');S.url=el.value.trim();localStorage.setItem('fa12_url',S.url);
+  const el=document.getElementById('backendUrl');S.url=el.value.trim();localStorage.setItem('fa13_url',S.url);
   const st=document.getElementById('cst');st.textContent='Testing...';st.style.color='var(--t3)';
   try{
     const d=await(await fetch(S.url.replace(/\/$/,'')+'/health')).json();
@@ -447,9 +472,11 @@ async function doScan(){
     document.getElementById('lastUp').textContent=new Date().toLocaleTimeString();
     document.getElementById('chips').style.display='flex';
     updSt();renderGrid();renderAdv();
-    if(!d.deltaOk)toast('Delta Exchange failed','err');
-    else if(!d.dcxOk)toast('CoinDCX failed — check Debug tab','warn');
-    else toast('Loaded '+S.opps.length+' matched pairs','ok');
+    if(!d.deltaOk)toast('Delta Exchange failed: '+(d.deltaError||'unknown'),'err');
+    else if(!d.dcxOk){
+      const hint=d.dcxError?d.dcxError.slice(0,80):'check Debug tab';
+      toast('CoinDCX failed — '+hint,'warn');
+    } else toast('Loaded '+S.opps.length+' matched pairs','ok');
     loadBal();
   }catch(e){toast('Error: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='Refresh Data';}
@@ -459,7 +486,6 @@ function setDot(ex,ok,cnt){
   document.getElementById(ex+'Dot').className='exdot '+(ok?'ok':'fail');
   const el=document.getElementById(ex+'Cnt');el.textContent=ok?(cnt||'?')+' coins':'failed';el.style.color=ok?'var(--g)':'var(--r)';
 }
-
 function updSt(){
   const o=S.opps;
   document.getElementById('stT').textContent=o.length;
@@ -470,7 +496,6 @@ function updSt(){
 }
 
 function togAdv(){S.advOpen=!S.advOpen;document.getElementById('advBdy').style.display=S.advOpen?'':'none';document.getElementById('advTog').textContent=S.advOpen?'hide':'show';}
-
 function sToF(){const n=new Date(),s=n.getUTCHours()*3600+n.getUTCMinutes()*60+n.getUTCSeconds();return 8*3600-(s%(8*3600));}
 
 function renderAdv(){
@@ -489,7 +514,7 @@ function renderAdv(){
     ${i===0?`<button class="badv" onclick="openMF('${o.base}')">Trade Now</button>`:''}</div>`).join('');
   const dF=top.deltaFunding,cF=top.dcxFunding;
   let why='';
-  if(top.scenarioType==='goldmine'){const posEx=dF>0?'Delta':'CoinDCX',negEx=dF<0?'Delta':'CoinDCX';why=`<b>GOLDMINE on ${top.base}</b> — Short ${posEx} (positive ${(dF>0?dF:cF).toFixed(4)}%): earn funding. Long ${negEx} (negative ${(dF<0?dF:cF).toFixed(4)}%): earn funding. Collect from BOTH sides. Net: ${top.netYield.toFixed(4)}%.`;}
+  if(top.scenarioType==='goldmine'){const posEx=dF>0?'Delta':'CoinDCX',negEx=dF<0?'Delta':'CoinDCX';why=`<b>GOLDMINE on ${top.base}</b> — Short ${posEx} (+${(dF>0?dF:cF).toFixed(4)}%): earn funding. Long ${negEx} (${(dF<0?dF:cF).toFixed(4)}%): earn funding. Collect from BOTH sides. Net: ${top.netYield.toFixed(4)}%.`;}
   else if(top.scenarioType==='negative'){why=`<b>Both Negative on ${top.base}</b> — Long ${top.longExchange} (${(top.longExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding every 8h. Short ${top.shortExchange}: hedges all price risk. Net: ${top.netYield.toFixed(4)}%.`;}
   else{why=`<b>Both Positive on ${top.base}</b> — Short ${top.shortExchange} (${(top.shortExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding. Long ${top.longExchange}: hedges price. Net: ${top.netYield.toFixed(4)}%.`;}
   const uc=rem<1800?'var(--r)':rem<3600?'var(--gd)':'var(--t2)';
@@ -560,7 +585,6 @@ async function execOrd(){
   }catch(e){toast('Order error: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='Execute Both Orders Simultaneously';}
 }
-
 async function execExit(){
   const o=S.sel;if(!o)return;if(!confirm('Exit both for '+o.base+'?'))return;
   const btn=document.querySelector('.bexit');btn.disabled=true;btn.textContent='Exiting...';
@@ -611,19 +635,117 @@ async function loadBal(){
   }catch(_){}
 }
 
-async function runDbg(){
-  const box=document.getElementById('dbgBox');box.classList.add('on');box.textContent='Testing both exchanges...';
+// ── DEBUG FUNCTIONS ───────────────────────────────────
+function dbgBox(){return document.getElementById('dbgBox');}
+function dbgWrite(html){const b=dbgBox();b.classList.add('on');b.innerHTML=html;}
+
+function fmtStep(s){
+  const t=s.trim();
+  if(t.startsWith('STEP'))return `<span class="sl-hd">${esc(t)}</span>`;
+  if(t.includes('FAILED')||t.includes('ERROR')||t.includes('error'))return `<span class="sl-err">${esc(t)}</span>`;
+  if(t.includes('HTTP 200')||t.includes('Parsed ')||t.includes('items')||t.includes('tickers')||t.includes('coins'))return `<span class="sl-ok">${esc(t)}</span>`;
+  return `<span class="sl-info">${esc(t)}</span>`;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function runDbgFull(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Running full debug test...</span>');
   try{
     const base=S.url.replace(/\/$/,'');
-    const [dr,cr]=await Promise.all([fetch(base+'/debug/delta').then(r=>r.json()),fetch(base+'/debug/dcx').then(r=>r.json())]);
-    let h='<b style="color:var(--gd)">DELTA EXCHANGE INDIA</b><br>';
-    if(dr.ok){h+=`<span style="color:var(--g)">Connected — ${dr.count||0} futures, ${dr.parsed||0} parsed</span><br>`;(dr.sample||[]).forEach(s=>{const fr=parseFloat(s.fundingRate||0);const fc=fr>0?'var(--g)':fr<0?'var(--r)':'var(--t3)';h+=`&nbsp;${s.base}: $${fmt(s.price)} <span style="color:${fc}">fund=${fr.toFixed(5)}%</span><br>`;});}
-    else h+=`<span style="color:var(--r)">FAILED: ${dr.error}</span><br>`;
-    h+='<br><b style="color:var(--gd)">COINDCX</b><br>';
-    if(cr.ok){const wf=cr.withFunding||0;h+=`<span style="color:var(--g)">Connected — ${cr.total||0} contracts, ${cr.parsed||0} parsed</span><br>`;h+=`With funding rate: <b style="color:${wf>0?'var(--g)':'var(--r)'}">${wf} coins</b><br>`;h+=`Source: ${cr.source||'unknown'}<br>`;if(cr.sampleCoins?.length)h+=`Coins: ${cr.sampleCoins.slice(0,8).join(', ')}<br>`;(cr.sample||[]).forEach(s=>{const fr=parseFloat(s.fundingRate||0);const fc=fr>0?'var(--g)':fr<0?'var(--r)':'var(--t3)';h+=`&nbsp;${s.base}: $${fmt(s.price)} <span style="color:${fc}">fund=${fr.toFixed(5)}%</span><br>`;});if(cr.errors?.length){h+='<br>Errors: '+cr.errors.join('<br>');}}
-    else h+=`<span style="color:var(--r)">FAILED: ${cr.error}</span><br><span style="color:var(--gd)">Check DCX_KEY and DCX_SECRET in Railway Variables.</span>`;
-    box.innerHTML=h;
-  }catch(e){box.textContent='Error: '+e.message;}
+    const [dr,cr]=await Promise.all([
+      fetch(base+'/debug/delta').then(r=>r.json()).catch(e=>({ok:false,error:e.message})),
+      fetch(base+'/debug/dcx').then(r=>r.json()).catch(e=>({ok:false,error:e.message}))
+    ]);
+
+    let h='<span class="sl-hd">━━ DELTA EXCHANGE INDIA ━━</span>\n';
+    if(dr.ok){
+      h+=`<span class="sl-ok">✅ Connected — ${dr.count||0} futures, ${dr.parsed||0} parsed</span>\n`;
+      (dr.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+      (dr.sample||[]).forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)}: $${fmt(s.price)} <span class="${fr>0?'sl-ok':fr<0?'sl-err':'sl-info'}">fund=${fr.toFixed(5)}%</span>\n`;});
+    } else {
+      h+=`<span class="sl-err">❌ FAILED: ${esc(dr.error||'')}</span>\n`;
+      (dr.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+    }
+
+    h+='\n<span class="sl-hd">━━ COINDCX ━━</span>\n';
+    if(cr.ok){
+      h+=`<span class="sl-ok">✅ Connected — ${cr.total||0} instruments, ${cr.parsed||0} parsed</span>\n`;
+      h+=`Source: <span class="sl-ok">${esc(cr.source||'?')}</span>\n`;
+      h+=`With funding rate: <span class="${(cr.withFunding||0)>0?'sl-ok':'sl-err'}">${cr.withFunding||0} coins</span>\n`;
+    } else {
+      h+=`<span class="sl-err">❌ FAILED — 0 coins parsed</span>\n`;
+    }
+    h+='\n<span class="sl-hd">Step log:</span>\n';
+    (cr.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+    if((cr.errors||[]).length){
+      h+='\n<span class="sl-hd">Errors:</span>\n';
+      (cr.errors||[]).forEach(e=>{ h+=`<span class="sl-err">  ${esc(e)}</span>\n`; });
+    }
+    if((cr.sampleCoins||[]).length) h+=`\nCoins: <span class="sl-ok">${cr.sampleCoins.slice(0,12).join(', ')}</span>\n`;
+    (cr.sample||[]).forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)}: $${fmt(s.price)} <span class="${fr>0?'sl-ok':fr<0?'sl-err':'sl-info'}">fund=${fr.toFixed(5)}%</span>\n`;});
+
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
+}
+
+async function runRawProbe(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Probing every CoinDCX endpoint individually...</span>');
+  try{
+    const base=S.url.replace(/\/$/,'');
+    const r=await fetch(base+'/debug/dcx-raw').then(x=>x.json());
+    let h='<span class="sl-hd">━━ RAW ENDPOINT PROBE ━━</span>\n\n';
+    h+='<table class="probe-tbl" style="font-size:10px"><thead><tr><th>Endpoint</th><th>Status</th><th>ms</th><th>Items</th><th>Fields</th><th>Error</th></tr></thead><tbody>';
+    for(const p of (r.probes||[])){
+      const ok=p.ok;
+      h+=`<tr>
+        <td style="color:var(--t2)">${esc(p.name)}</td>
+        <td><span class="${ok?'pok':'pfail'}">${ok?'✅ '+p.status:'❌ '+p.status}</span></td>
+        <td class="pms">${p.ms||'--'}</td>
+        <td style="color:${ok?'var(--g)':'var(--t3)'}">${ok?p.items:'--'}</td>
+        <td style="color:var(--t3);font-size:9px">${ok&&p.fields?esc(p.fields.slice(0,60)):'--'}</td>
+        <td style="color:var(--r);font-size:9px">${!ok?esc((p.error||'').slice(0,120)):''}</td>
+      </tr>`;
+    }
+    h+='</tbody></table>';
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
+}
+
+async function runDbgDelta(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Testing Delta Exchange only...</span>');
+  try{
+    const r=await fetch(S.url.replace(/\/$/,'')+'/debug/delta').then(x=>x.json());
+    let h='<span class="sl-hd">━━ DELTA EXCHANGE INDIA ━━</span>\n';
+    if(r.ok){h+=`<span class="sl-ok">✅ Connected — ${r.count} futures, ${r.parsed} parsed</span>\n`;}
+    else{h+=`<span class="sl-err">❌ FAILED: ${esc(r.error||'')}</span>\n`;}
+    (r.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+    (r.sample||[]).forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)}: $${fmt(s.price)} fund=${fr.toFixed(5)}%\n`;});
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
+}
+
+async function runDbgDcx(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Testing CoinDCX only (step-by-step)...</span>');
+  try{
+    const r=await fetch(S.url.replace(/\/$/,'')+'/debug/dcx').then(x=>x.json());
+    let h='<span class="sl-hd">━━ COINDCX DETAILED DEBUG ━━</span>\n';
+    h+=`Status: <span class="${r.ok?'sl-ok':'sl-err'}">${r.ok?'✅ OK':'❌ FAILED'}</span>\n`;
+    h+=`Source: ${esc(r.source||'none')}\n`;
+    h+=`Total instruments: ${r.total||0} | Parsed coins: ${r.parsed||0} | With funding: ${r.withFunding||0}\n\n`;
+    h+='<span class="sl-hd">Step-by-step log:</span>\n';
+    (r.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+    if((r.errors||[]).length){
+      h+='\n<span class="sl-err">Errors:</span>\n';
+      r.errors.forEach(e=>{ h+=`<span class="sl-err">  ⚠ ${esc(e)}</span>\n`; });
+    }
+    if((r.sampleCoins||[]).length)h+=`\nParsed coins: <span class="sl-ok">${r.sampleCoins.join(', ')}</span>\n`;
+    if((r.sample||[]).length){h+='\n<span class="sl-hd">Sample data:</span>\n';r.sample.forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)} (${esc(s.symbol)}): $${fmt(s.price)} fund=${fr.toFixed(5)}%\n`;});}
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
 }
 
 function startClk(){function tick(){const n=new Date(),s=n.getUTCHours()*3600+n.getUTCMinutes()*60+n.getUTCSeconds();const r=8*3600-(s%(8*3600));const h=Math.floor(r/3600),m=Math.floor((r%3600)/60),sc=r%60;document.getElementById('ftime').textContent=(h>0?h+':':'')+pad(m)+':'+pad(sc);document.getElementById('fdot').classList.toggle('on',r<=600);}tick();setInterval(tick,1000);}
