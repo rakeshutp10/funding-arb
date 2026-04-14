@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>FundArb — Delta + CoinDCX</title>
+<title>FundArb v13 — Delta + CoinDCX</title>
 <style>
 :root{
   --bg:#07090f;--s1:#0d1120;--s2:#111728;--s3:#192035;
@@ -15,7 +15,7 @@
   --gdBg:rgba(245,168,0,.08);--gdBd:rgba(245,168,0,.28);
   --acBg:rgba(46,111,255,.10);
   --sh:0 4px 24px rgba(0,0,0,.55);
-  --rd:8px;
+  --rad:8px;
   --f:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --m:'SF Mono','Fira Code','Consolas',monospace;
 }
@@ -32,14 +32,15 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:13px;-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--t1);font-family:var(--f);min-height:100vh;overflow-x:hidden;transition:background .2s,color .2s}
-button{cursor:pointer;font-family:var(--f);border:none;border-radius:var(--rd);font-size:12px;transition:all .14s}
+button{cursor:pointer;font-family:var(--f);border:none;border-radius:var(--rad);font-size:12px;transition:all .14s}
 button:active{opacity:.74;transform:scale(.96)}
-input{background:var(--bg);border:1px solid var(--b2);color:var(--t1);border-radius:var(--rd);font-size:12px;padding:7px 10px;width:100%;outline:none;font-family:var(--f)}
+input{background:var(--bg);border:1px solid var(--b2);color:var(--t1);border-radius:var(--rad);font-size:12px;padding:7px 10px;width:100%;outline:none;font-family:var(--f)}
 input:focus{border-color:var(--ac);box-shadow:0 0 0 2px var(--acBg)}
 label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:4px}
 
+/* HEADER */
 .hdr{background:var(--s1);border-bottom:1px solid var(--b1);padding:0 14px;display:flex;align-items:center;height:52px;gap:10px;position:sticky;top:0;z-index:100;box-shadow:var(--sh)}
 .logo{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
 .logo svg{flex-shrink:0;width:34px;height:34px}
@@ -54,18 +55,20 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .hb{background:var(--s2);border:1px solid var(--b1);color:var(--t2);padding:6px 11px;font-size:11px;flex-shrink:0}
 .hb:hover{color:var(--t1)}
 
+/* SETTINGS */
 .sett{background:var(--s1);border-bottom:1px solid var(--b1);padding:14px;display:none}
 .sett.on{display:block}
 .sg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:500px){.sg{grid-template-columns:1fr}}
-.sb{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rd);padding:12px}
+.sb{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:12px}
 .sb-t{font-size:10px;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.fld{margin-bottom:8px}
 .note{font-size:9px;color:var(--gd);background:var(--gdBg);border:1px solid var(--gdBd);border-radius:5px;padding:6px 8px;margin-bottom:10px;line-height:1.6}
 .pbtn{background:var(--ac);color:#fff;padding:9px 14px;width:100%;font-weight:700}
 .pbtn:hover{filter:brightness(1.1)}
 .cst{font-size:10px;margin-top:5px;color:var(--t3)}
-.vl{font-size:10px;color:var(--t2);line-height:1.8}.vl b{color:var(--t1)}
 
+/* STATUS BAR */
 .exbar{background:var(--s1);border-bottom:1px solid var(--b1);padding:6px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .exch{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;border:1px solid var(--b1);background:var(--s2)}
 .exdot{width:8px;height:8px;border-radius:50%;background:var(--t3);flex-shrink:0;transition:background .3s}
@@ -75,17 +78,20 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .exc{font-size:9px;color:var(--t3)}
 .exgap{flex:1}.exbk{font-size:10px;color:var(--t2)}
 
+/* BALANCE */
 .bbar{background:var(--s1);border-bottom:1px solid var(--b1);padding:5px 14px;display:flex;align-items:center;gap:5px;font-size:10px;overflow-x:auto;white-space:nowrap}
 .bi{color:var(--t2)}.bi b{color:var(--t1);font-weight:700}
 .bsp{color:var(--b2);margin:0 3px}
 .brf{margin-left:auto;color:var(--ac);cursor:pointer;font-size:10px;flex-shrink:0}
 .brf:hover{text-decoration:underline}
 
+/* TABS */
 .tabs{background:var(--s1);border-bottom:1px solid var(--b1);display:flex;overflow-x:auto}
 .tab{background:none;color:var(--t3);padding:10px 18px;font-size:11px;border-bottom:2px solid transparent;border-radius:0;white-space:nowrap;flex-shrink:0;font-weight:500}
 .tab.on{color:var(--ac);border-bottom-color:var(--ac)}
 .pane{display:none;padding:14px}.pane.on{display:block}
 
+/* TOOLBAR */
 .tbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .bscan{background:var(--ac);color:#fff;padding:9px 20px;font-weight:700}
 .bscan:hover{filter:brightness(1.1)}
@@ -96,12 +102,14 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .bsm{background:var(--s2);border:1px solid var(--b1);color:var(--t2);padding:7px 13px;font-size:11px}
 .bsm:hover{color:var(--t1)}
 
+/* STATS */
 .chips{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
 .chip{background:var(--s2);border:1px solid var(--b1);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--t2)}
 .chip b{color:var(--t1);font-weight:700}
 .chip.cg{border-color:var(--gdBd);color:var(--gd)}.chip.cn{border-color:var(--gBd);color:var(--g)}.chip.cr{border-color:var(--rBd);color:var(--r)}
 
-.adv{background:var(--s2);border:1px solid var(--gdBd);border-left:3px solid var(--gd);border-radius:var(--rd);margin-bottom:16px;display:none}
+/* ADVISOR */
+.adv{background:var(--s2);border:1px solid var(--gdBd);border-left:3px solid var(--gd);border-radius:var(--rad);margin-bottom:16px;display:none}
 .adv.on{display:block}
 .adv-hd{padding:9px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;border-bottom:1px solid var(--b1)}
 .adv-ico{width:16px;height:16px;background:var(--gdBg);border:1px solid var(--gdBd);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -110,7 +118,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .adv-body{padding:12px 14px}
 .atop{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:10px}
 @media(max-width:560px){.atop{grid-template-columns:1fr}}
-.ac{background:var(--s3);border:1px solid var(--b1);border-radius:var(--rd);padding:10px;position:relative}
+.ac{background:var(--s3);border:1px solid var(--b1);border-radius:var(--rad);padding:10px;position:relative}
 .ac.top{border-color:var(--gdBd)}
 .ac-rk{position:absolute;top:6px;right:8px;font-size:9px;color:var(--t3);font-weight:700}
 .ac-coin{font-size:14px;font-weight:800;color:var(--t1);margin-bottom:3px}
@@ -119,12 +127,13 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .ac-dir{font-size:10px;color:var(--t2);line-height:1.7}
 .lt{color:var(--g);font-weight:700}.st{color:var(--r);font-weight:700}
 .ac-yld{font-size:12px;font-weight:700;color:var(--g);margin-top:5px}
-.adv-why{font-size:10px;color:var(--t2);line-height:1.8;background:var(--s3);border:1px solid var(--b1);border-radius:var(--rd);padding:10px;margin-bottom:10px}
+.adv-why{font-size:10px;color:var(--t2);line-height:1.8;background:var(--s3);border:1px solid var(--b1);border-radius:var(--rad);padding:10px;margin-bottom:10px}
 .adv-why b{color:var(--gd)}
-.badv{background:var(--gdBg);color:var(--gd);border:1px solid var(--gdBd);padding:6px 12px;font-weight:700;font-size:11px;width:100%;margin-top:8px;border-radius:var(--rd)}
+.badv{background:var(--gdBg);color:var(--gd);border:1px solid var(--gdBd);padding:6px 12px;font-weight:700;font-size:11px;width:100%;margin-top:8px;border-radius:var(--rad)}
 
+/* GRID */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(282px,1fr));gap:10px}
-.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rd);overflow:hidden;cursor:pointer;transition:border-color .18s,box-shadow .18s}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rad);overflow:hidden;cursor:pointer;transition:border-color .18s,box-shadow .18s}
 .card:hover{border-color:var(--b2);box-shadow:var(--sh)}
 .card.goldmine{border-left:3px solid var(--gd)}.card.positive{border-left:3px solid var(--g)}.card.negative{border-left:3px solid var(--r)}
 .chd{padding:9px 12px 8px;background:var(--s2);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:7px}
@@ -154,6 +163,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .cvol{padding:0 12px 8px;font-size:9px;color:var(--t3)}.cvol span{color:var(--t2)}
 .empty{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--t3);font-size:12px;line-height:2.2}
 
+/* MODAL */
 .ovr{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);z-index:200;display:flex;align-items:flex-end;justify-content:center}
 .ovr.off{display:none}
 .modal{background:var(--s1);border:1px solid var(--b2);border-bottom:none;border-radius:13px 13px 0 0;width:100%;max-width:520px;max-height:93vh;overflow-y:auto}
@@ -162,14 +172,14 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .mcls{background:var(--s2);color:var(--t2);width:26px;height:26px;border-radius:6px;font-size:15px;display:flex;align-items:center;justify-content:center}
 .mbdy{padding:14px 16px 26px}
 .minf{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.mc{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rd);padding:9px 11px}
+.mc{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:9px 11px}
 .mcl{font-size:9px;color:var(--t3);margin-bottom:3px;text-transform:uppercase}
 .mcv{font-size:13px;font-weight:800;font-family:var(--m)}
-.lbox{background:var(--gdBg);border:1px solid var(--gdBd);border-radius:var(--rd);padding:10px 12px;margin-bottom:12px;font-size:10px;color:var(--t1);line-height:1.8}
+.lbox{background:var(--gdBg);border:1px solid var(--gdBd);border-radius:var(--rad);padding:10px 12px;margin-bottom:12px;font-size:10px;color:var(--t1);line-height:1.8}
 .lbox b{color:var(--gd)}
 .mdirs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.mlong{background:var(--gBg);border:2px solid var(--gBd);border-radius:var(--rd);padding:10px;text-align:center}
-.mshort{background:var(--rBg);border:2px solid var(--rBd);border-radius:var(--rd);padding:10px;text-align:center}
+.mlong{background:var(--gBg);border:2px solid var(--gBd);border-radius:var(--rad);padding:10px;text-align:center}
+.mshort{background:var(--rBg);border:2px solid var(--rBd);border-radius:var(--rad);padding:10px;text-align:center}
 .mdl{font-size:9px;color:var(--t3);letter-spacing:.3px;margin-bottom:3px}
 .mde{font-size:14px;font-weight:800}
 .mlong .mde{color:var(--g)}.mshort .mde{color:var(--r)}
@@ -179,21 +189,22 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .tbtns{display:flex;gap:4px}
 .tyb{flex:1;padding:7px;background:var(--s2);color:var(--t2);border:1px solid var(--b1)}
 .tyb.on{background:var(--ac);color:#fff;border-color:var(--ac)}
-.bexec{width:100%;padding:13px;background:var(--g);color:#fff;font-weight:800;font-size:13px;border-radius:var(--rd);margin-top:10px}
+.bexec{width:100%;padding:13px;background:var(--g);color:#fff;font-weight:800;font-size:13px;border-radius:var(--rad);margin-top:10px}
 .bexec:hover{filter:brightness(1.1)}
 .bexec:disabled{background:var(--s3);color:var(--t3);cursor:not-allowed;transform:none}
-.bexit{width:100%;padding:9px;background:transparent;color:var(--r);border:1px solid var(--rBd);font-weight:700;font-size:12px;border-radius:var(--rd);margin-top:6px}
+.bexit{width:100%;padding:9px;background:transparent;color:var(--r);border:1px solid var(--rBd);font-weight:700;font-size:12px;border-radius:var(--rad);margin-top:6px}
 .bexit:hover{background:var(--rBg)}
-.ores{margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:var(--rd);font-size:11px;word-break:break-all;display:none}
+.ores{margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:var(--rad);font-size:11px;word-break:break-all;display:none}
 .ores.on{display:block}
 .rok{border-left:3px solid var(--g)}.rerr{border-left:3px solid var(--r)}
 .rsec{margin-bottom:8px}
 .rlbl{font-size:9px;color:var(--t3);margin-bottom:3px;text-transform:uppercase}
 .ehint{margin-top:8px;padding:8px 10px;background:var(--gdBg);border:1px solid var(--gdBd);border-radius:5px;font-size:10px;color:var(--gd);line-height:1.6}
 
+/* POSITIONS / HISTORY */
 .twin{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media(max-width:520px){.twin{grid-template-columns:1fr}}
-.ebox{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rd);overflow:hidden}
+.ebox{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);overflow:hidden}
 .ebhd{padding:8px 12px;background:var(--s3);border-bottom:1px solid var(--b1);font-size:11px;font-weight:700;color:var(--ac)}
 .pit{padding:10px 12px;border-bottom:1px solid var(--b1)}.pit:last-child{border-bottom:none}
 .psym{font-weight:700;font-size:12px;margin-bottom:4px}
@@ -203,12 +214,31 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .htbl td{padding:8px 10px;border-bottom:1px solid var(--b1);color:var(--t1)}
 .sbb{color:var(--g);font-weight:700}.sbs{color:var(--r);font-weight:700}
 
-/* Debug box — monospace, detailed */
-.dbx{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rd);padding:12px;display:none;font-size:10px;font-family:var(--m);line-height:1.9;word-break:break-all;white-space:pre-wrap}
-.dbx.on{display:block}
+/* ── DEBUG PANEL ─────────────────────────────────────── */
+.dbg-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.dbg-btns button{background:var(--s2);border:1px solid var(--b1);color:var(--t2);padding:7px 14px;font-size:11px}
+.dbg-btns button:hover{color:var(--t1);border-color:var(--b2)}
+.dbg-btns button.primary{background:var(--ac);color:#fff;border-color:var(--ac)}
 
+/* probe table */
+.probe-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:14px;font-family:var(--m)}
+.probe-tbl th{background:var(--s3);color:var(--t3);text-align:left;padding:6px 10px;border-bottom:1px solid var(--b1);font-size:9px;text-transform:uppercase;letter-spacing:.4px}
+.probe-tbl td{padding:7px 10px;border-bottom:1px solid var(--b1);vertical-align:top;word-break:break-all}
+.probe-tbl tr:last-child td{border-bottom:none}
+.pok{color:var(--g);font-weight:700}.pfail{color:var(--r);font-weight:700}
+.pms{color:var(--t3);font-size:10px}
+
+/* step log */
+.step-log{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:12px;font-size:10px;font-family:var(--m);line-height:2;word-break:break-all;max-height:400px;overflow-y:auto;display:none}
+.step-log.on{display:block}
+.sl-ok{color:var(--g)}.sl-err{color:var(--r)}.sl-hd{color:var(--gd);font-weight:700}
+.sl-info{color:var(--t2)}
+
+.sec-title{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:14px}
+
+/* TOAST */
 .toasts{position:fixed;bottom:20px;right:14px;display:flex;flex-direction:column;gap:8px;z-index:999}
-.toast{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rd);padding:10px 14px;font-size:11px;max-width:280px;animation:tin .2s;color:var(--t1)}
+.toast{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rad);padding:10px 14px;font-size:11px;max-width:280px;animation:tin .2s;color:var(--t1)}
 .toast.ok{border-left:3px solid var(--g)}.toast.err{border-left:3px solid var(--r)}.toast.warn{border-left:3px solid var(--gd)}
 @keyframes tin{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
 </style>
@@ -245,30 +275,34 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 <div class="sett" id="sett">
   <div class="sg">
     <div class="sb" style="grid-column:1/-1">
-      <div class="sb-t">Backend URL</div>
+      <div class="sb-t">Backend URL (Railway)</div>
       <div class="fld">
-        <label>Railway deployment URL or Codespace URL</label>
+        <label>Paste your Railway deployment URL</label>
         <input type="url" id="backendUrl" placeholder="https://your-app.up.railway.app"/>
       </div>
       <button class="pbtn" onclick="testConn()">Test Connection &amp; Save</button>
       <div class="cst" id="cst"></div>
     </div>
     <div class="sb">
-      <div class="sb-t">Delta Exchange India</div>
-      <div class="note">Set Railway Variables: DELTA_KEY + DELTA_SECRET. IP whitelist: 0.0.0.0</div>
-      <div class="vl"><b>DELTA_KEY</b> = your API key<br><b>DELTA_SECRET</b> = your secret</div>
+      <div class="sb-t">Delta Exchange India — API Keys</div>
+      <div class="note">Keys are stored in Railway Variables — not here. This just shows connection status.</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">Set in Railway → your service → Variables:<br>
+      <b style="color:var(--t1)">DELTA_KEY</b> = your Delta API key<br>
+      <b style="color:var(--t1)">DELTA_SECRET</b> = your Delta API secret</div>
     </div>
     <div class="sb">
-      <div class="sb-t">CoinDCX Futures</div>
-      <div class="note">Set Railway Variables: DCX_KEY + DCX_SECRET. IP whitelist: 0.0.0.0 on CoinDCX API dashboard.</div>
-      <div class="vl"><b>DCX_KEY</b> = your API key<br><b>DCX_SECRET</b> = your secret</div>
+      <div class="sb-t">CoinDCX — API Keys</div>
+      <div class="note">Keys are stored in Railway Variables — not here. This just shows connection status.</div>
+      <div style="font-size:10px;color:var(--t2);line-height:1.7">Set in Railway → your service → Variables:<br>
+      <b style="color:var(--t1)">DCX_KEY</b> = your CoinDCX API key<br>
+      <b style="color:var(--t1)">DCX_SECRET</b> = your CoinDCX API secret</div>
     </div>
   </div>
 </div>
 
 <div class="exbar">
   <div class="exch"><div class="exdot" id="dDot"></div><span class="exn">Delta Exchange India</span><span class="exc" id="dCnt"></span></div>
-  <div class="exch"><div class="exdot" id="cDot"></div><span class="exn">CoinDCX Futures</span><span class="exc" id="cCnt"></span></div>
+  <div class="exch"><div class="exdot" id="cDot"></div><span class="exn">CoinDCX</span><span class="exc" id="cCnt"></span></div>
   <div class="exgap"></div>
   <span class="exbk" id="backSt">Backend: not checked</span>
 </div>
@@ -286,7 +320,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
   <button class="tab on" onclick="goTab('opp',this)">Opportunities</button>
   <button class="tab" onclick="goTab('pos',this)">Positions</button>
   <button class="tab" onclick="goTab('hist',this)">History</button>
-  <button class="tab" onclick="goTab('dbg',this)">Debug</button>
+  <button class="tab" onclick="goTab('dbg',this)">🔍 Debug</button>
 </div>
 
 <!-- OPPORTUNITIES -->
@@ -314,7 +348,9 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
       <div class="adv-why" id="advWhy"></div>
     </div>
   </div>
-  <div class="grid" id="grid"><div class="empty">Press "Refresh Data" to scan both exchanges.</div></div>
+  <div class="grid" id="grid">
+    <div class="empty">Press "Refresh Data" to scan both exchanges.</div>
+  </div>
 </div>
 
 <!-- POSITIONS -->
@@ -322,7 +358,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
   <div class="tbar"><button class="bsm" onclick="loadPos()">Load Positions</button></div>
   <div class="twin">
     <div class="ebox"><div class="ebhd">Delta Exchange India</div><div id="dPos" style="padding:12px;color:var(--t3);font-size:11px">Not loaded</div></div>
-    <div class="ebox"><div class="ebhd">CoinDCX Futures</div><div id="cPos" style="padding:12px;color:var(--t3);font-size:11px">Not loaded</div></div>
+    <div class="ebox"><div class="ebhd">CoinDCX</div><div id="cPos" style="padding:12px;color:var(--t3);font-size:11px">Not loaded</div></div>
   </div>
 </div>
 
@@ -334,20 +370,23 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
     <table class="htbl"><thead><tr><th>Symbol</th><th>Side</th><th>Type</th><th>Size</th><th>Price</th><th>Status</th><th>Time</th></tr></thead>
     <tbody id="dHist"><tr><td colspan="7" style="padding:14px;color:var(--t3);text-align:center">Not loaded</td></tr></tbody></table>
   </div>
-  <div style="margin-bottom:10px;font-size:11px;color:var(--t2);font-weight:600">CoinDCX Futures</div>
+  <div style="margin-bottom:10px;font-size:11px;color:var(--t2);font-weight:600">CoinDCX</div>
   <div style="overflow-x:auto">
-    <table class="htbl"><thead><tr><th>Pair</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th><th>Time</th></tr></thead>
+    <table class="htbl"><thead><tr><th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th><th>Time</th></tr></thead>
     <tbody id="cHist"><tr><td colspan="7" style="padding:14px;color:var(--t3);text-align:center">Not loaded</td></tr></tbody></table>
   </div>
 </div>
 
-<!-- DEBUG — detailed output -->
+<!-- DEBUG -->
 <div class="pane" id="pane-dbg">
-  <div class="tbar">
-    <button class="bsm" onclick="runDbg()">Run Debug Test</button>
-    <span style="font-size:10px;color:var(--t3)">Shows exact errors from both exchanges</span>
+  <div class="dbg-btns">
+    <button class="primary" onclick="runDbgFull()">▶ Full Debug Test</button>
+    <button onclick="runRawProbe()">🔬 Raw Endpoint Probe</button>
+    <button onclick="runDbgDelta()">Delta Only</button>
+    <button onclick="runDbgDcx()">CoinDCX Only</button>
+    <button onclick="runFieldDump()" style="background:var(--gdBg);color:var(--gd);border:1px solid var(--gdBd)">📋 Field Dump</button>
   </div>
-  <div class="dbx" id="dbgBox"></div>
+  <div id="dbgBox" class="step-log"></div>
 </div>
 
 <!-- MODAL -->
@@ -370,8 +409,8 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
         <div><label>Order Type</label>
           <div class="tbtns"><button class="tyb on" id="bMkt" onclick="setOT('market')">Market</button><button class="tyb" id="bLmt" onclick="setOT('limit')">Limit</button></div>
         </div>
-        <div><label>Leverage (x)</label><input type="number" id="oLev" value="10" min="1" max="100"/></div>
-        <div><label>Quantity (contracts)</label><input type="number" id="oQty" value="1" min="0.001" step="0.001" oninput="calcN()"/></div>
+        <div><label>Leverage (x)</label><input type="number" id="oLev" value="5" min="1" max="100"/></div>
+        <div><label>Quantity (contracts)</label><input type="number" id="oQty" value="1" min="0.1" step="0.1" oninput="calcN()"/></div>
         <div><label>Est. Notional (USD)</label><input type="text" id="oNot" readonly style="color:var(--t3)"/></div>
         <div id="limPx" style="display:none" class="full">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -390,37 +429,37 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 <div class="toasts" id="toasts"></div>
 
 <script>
-const S={url:'',opps:[],sel:null,ot:'market',advOpen:true,theme:localStorage.getItem('fa14_t')||'d'};
+const S={url:'',opps:[],sel:null,ot:'market',advOpen:true,theme:localStorage.getItem('fa13_t')||'d'};
 
 window.addEventListener('DOMContentLoaded',()=>{
   applyTh(S.theme);
-  const v=localStorage.getItem('fa14_url');
+  const v=localStorage.getItem('fa13_url');
   if(v){S.url=v;const el=document.getElementById('backendUrl');if(el)el.value=v;document.getElementById('cst').textContent='Saved: '+v;}
   startClk();
 });
 
-function applyTh(t){S.theme=t;document.documentElement.setAttribute('data-t',t);document.getElementById('thmBtn').innerHTML=t==='d'?'&#9788;':'&#9790;';localStorage.setItem('fa14_t',t);}
+function applyTh(t){S.theme=t;document.documentElement.setAttribute('data-t',t);document.getElementById('thmBtn').innerHTML=t==='d'?'&#9788;':'&#9790;';localStorage.setItem('fa13_t',t);}
 document.getElementById('thmBtn').onclick=()=>applyTh(S.theme==='d'?'l':'d');
 document.getElementById('setBtn').onclick=()=>document.getElementById('sett').classList.toggle('on');
 
 async function api(path,body=null){
   if(!S.url)throw new Error('Backend URL not set. Open Settings.');
   const r=await fetch(S.url.replace(/\/$/,'')+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
-  if(!r.ok)throw new Error('HTTP '+r.status);
+  if(!r.ok)throw new Error('HTTP '+r.status+' from '+path);
   return r.json();
 }
 
 async function testConn(){
-  const el=document.getElementById('backendUrl');S.url=el.value.trim();localStorage.setItem('fa14_url',S.url);
+  const el=document.getElementById('backendUrl');S.url=el.value.trim();localStorage.setItem('fa13_url',S.url);
   const st=document.getElementById('cst');st.textContent='Testing...';st.style.color='var(--t3)';
   try{
     const d=await(await fetch(S.url.replace(/\/$/,'')+'/health')).json();
     if(d.status==='ok'){
       const keyOk=d.deltaKeySet&&d.dcxKeySet;
-      st.textContent='Connected v'+d.version+(keyOk?' ✓ Keys set':' ⚠ Keys NOT set in Railway!');
+      st.textContent='Connected v'+d.version+(keyOk?' — Keys set ✓':' — Keys NOT set in Railway!');
       st.style.color=keyOk?'var(--g)':'var(--gd)';
       document.getElementById('backSt').textContent='Backend: connected';document.getElementById('backSt').style.color='var(--g)';
-      toast('Connected'+(keyOk?'':' — set Railway Variables!'),keyOk?'ok':'warn');
+      toast('Backend connected'+(keyOk?'':' — set Railway Variables!'),keyOk?'ok':'warn');
     }
   }catch(e){st.textContent='Failed: '+e.message;st.style.color='var(--r)';toast('Backend unreachable','err');}
 }
@@ -434,9 +473,11 @@ async function doScan(){
     document.getElementById('lastUp').textContent=new Date().toLocaleTimeString();
     document.getElementById('chips').style.display='flex';
     updSt();renderGrid();renderAdv();
-    if(!d.deltaOk)toast('Delta Exchange failed','err');
-    else if(!d.dcxOk)toast('CoinDCX failed — run Debug tab for details','warn');
-    else toast('Loaded '+S.opps.length+' matched pairs','ok');
+    if(!d.deltaOk)toast('Delta Exchange failed: '+(d.deltaError||'unknown'),'err');
+    else if(!d.dcxOk){
+      const hint=d.dcxError?d.dcxError.slice(0,80):'check Debug tab';
+      toast('CoinDCX failed — '+hint,'warn');
+    } else toast('Loaded '+S.opps.length+' matched pairs','ok');
     loadBal();
   }catch(e){toast('Error: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='Refresh Data';}
@@ -446,7 +487,6 @@ function setDot(ex,ok,cnt){
   document.getElementById(ex+'Dot').className='exdot '+(ok?'ok':'fail');
   const el=document.getElementById(ex+'Cnt');el.textContent=ok?(cnt||'?')+' coins':'failed';el.style.color=ok?'var(--g)':'var(--r)';
 }
-
 function updSt(){
   const o=S.opps;
   document.getElementById('stT').textContent=o.length;
@@ -461,7 +501,8 @@ function sToF(){const n=new Date(),s=n.getUTCHours()*3600+n.getUTCMinutes()*60+n
 
 function renderAdv(){
   const adv=document.getElementById('adv');
-  if(!S.opps.length){adv.classList.remove('on');return;}adv.classList.add('on');
+  if(!S.opps.length){adv.classList.remove('on');return;}
+  adv.classList.add('on');
   const rem=sToF(),h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60),ts=h+'h '+m+'m';
   const scored=S.opps.filter(o=>o.netYield>0).sort((a,b)=>b.score-a.score).slice(0,3);
   if(!scored.length){document.getElementById('advTop').innerHTML='<div style="color:var(--t3);font-size:11px;grid-column:1/-1">No profitable opportunity after fees right now.</div>';document.getElementById('advWhy').innerHTML='';return;}
@@ -474,11 +515,11 @@ function renderAdv(){
     ${i===0?`<button class="badv" onclick="openMF('${o.base}')">Trade Now</button>`:''}</div>`).join('');
   const dF=top.deltaFunding,cF=top.dcxFunding;
   let why='';
-  if(top.scenarioType==='goldmine'){const posEx=dF>0?'Delta':'CoinDCX',negEx=dF<0?'Delta':'CoinDCX';why=`<b>GOLDMINE on ${top.base}</b> — Short ${posEx} (+${(dF>0?dF:cF).toFixed(4)}%): earn funding. Long ${negEx} (${(dF<0?dF:cF).toFixed(4)}%): earn funding too. Both sides pay you. Net: ${top.netYield.toFixed(4)}%.`;}
-  else if(top.scenarioType==='negative'){why=`<b>Both Negative on ${top.base}</b> — Long ${top.longExchange} (${(top.longExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding. Short ${top.shortExchange}: hedges all price risk. Net: ${top.netYield.toFixed(4)}% per 8h.`;}
+  if(top.scenarioType==='goldmine'){const posEx=dF>0?'Delta':'CoinDCX',negEx=dF<0?'Delta':'CoinDCX';why=`<b>GOLDMINE on ${top.base}</b> — Short ${posEx} (+${(dF>0?dF:cF).toFixed(4)}%): earn funding. Long ${negEx} (${(dF<0?dF:cF).toFixed(4)}%): earn funding. Collect from BOTH sides. Net: ${top.netYield.toFixed(4)}%.`;}
+  else if(top.scenarioType==='negative'){why=`<b>Both Negative on ${top.base}</b> — Long ${top.longExchange} (${(top.longExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding every 8h. Short ${top.shortExchange}: hedges all price risk. Net: ${top.netYield.toFixed(4)}%.`;}
   else{why=`<b>Both Positive on ${top.base}</b> — Short ${top.shortExchange} (${(top.shortExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding. Long ${top.longExchange}: hedges price. Net: ${top.netYield.toFixed(4)}%.`;}
   const uc=rem<1800?'var(--r)':rem<3600?'var(--gd)':'var(--t2)';
-  const ut=rem<1800?'URGENT — enter NOW, '+ts+' left':rem<3600?'Good window, '+ts+' left':'Early — '+ts+' until funding';
+  const ut=rem<1800?'URGENT — enter NOW, '+ts+' left':rem<3600?'Good window — enter soon, '+ts+' left':'Early — '+ts+' until funding';
   document.getElementById('advWhy').innerHTML=why+'<br><br><span style="color:'+uc+';font-weight:600">'+ut+'</span>';
 }
 
@@ -488,7 +529,7 @@ function renderGrid(){
   const min=parseFloat(document.getElementById('minDiff').value)||0;
   const data=S.opps.filter(o=>o.fundingDiff>=min);
   const g=document.getElementById('grid');
-  if(!data.length){g.innerHTML=S.opps.length===0?'<div class="empty">Press "Refresh Data" to scan both exchanges.</div>':'<div class="empty">No pairs match filter.</div>';return;}
+  if(!data.length){g.innerHTML=S.opps.length===0?'<div class="empty">Press "Refresh Data" to scan both exchanges.</div>':'<div class="empty">No pairs match filter. Lower Min Diff %.</div>';return;}
   g.innerHTML=data.map(o=>{
     const dfc=o.deltaFunding>0?'fp':o.deltaFunding<0?'fn':'fz';
     const cfc=o.dcxFunding>0?'fp':o.dcxFunding<0?'fn':'fz';
@@ -498,16 +539,15 @@ function renderGrid(){
     return `<div class="card ${o.scenarioType}" onclick='openM(${oj})'>
       <div class="chd"><span class="ccoin">${o.base}</span>${bdg}<span class="cchg ${chg>=0?'up':'dn'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span></div>
       <div class="cpx">
-        <div class="pxc"><div class="pxe">Delta (USDT)</div><div class="pxp">$${fmt(o.deltaPrice)}</div><div class="pxf ${dfc}">${o.deltaFunding>0?'+':''}${o.deltaFunding.toFixed(4)}%</div></div>
-        <div class="pxc"><div class="pxe">CoinDCX (USDT)</div><div class="pxp">$${fmt(o.dcxPrice)}</div><div class="pxf ${cfc}">${o.dcxFunding>0?'+':''}${o.dcxFunding.toFixed(4)}%</div></div>
+        <div class="pxc"><div class="pxe">Delta (USD)</div><div class="pxp">$${fmt(o.deltaPrice)}</div><div class="pxf ${dfc}">${o.deltaFunding>0?'+':''}${o.deltaFunding.toFixed(4)}%</div></div>
+        <div class="pxc"><div class="pxe">CoinDCX (USD)</div><div class="pxp">$${fmt(o.dcxPrice)}</div><div class="pxf ${cfc}">${o.dcxFunding>0?'+':''}${o.dcxFunding.toFixed(4)}%</div></div>
       </div>
       <div class="cmet">
         <div class="met"><div class="ml">Diff %</div><div class="mv ${dc}">${o.fundingDiff.toFixed(4)}</div></div>
         <div class="met"><div class="ml">Net Yield</div><div class="mv ${yc}">${o.netYield.toFixed(4)}</div></div>
         <div class="met"><div class="ml">Spread %</div><div class="mv mn">${o.spread}</div></div>
       </div>
-      <div class="cact"><div class="dirs"><span class="dl">L: ${o.longExchange}</span><span class="ds">S: ${o.shortExchange}</span></div>
-      <button class="btr" onclick="event.stopPropagation();openM(${oj})">Trade</button></div>
+      <div class="cact"><div class="dirs"><span class="dl">L: ${o.longExchange}</span><span class="ds">S: ${o.shortExchange}</span></div><button class="btr" onclick="event.stopPropagation();openM(${oj})">Trade</button></div>
       <div class="cvol">Vol: <span>${fmtV(o.volume)}</span></div>
     </div>`;
   }).join('');
@@ -526,10 +566,10 @@ function openM(o){
   document.getElementById('mLngPx').textContent='$'+fmt(o.longExchange==='Delta'?o.deltaPrice:o.dcxPrice)+' USD';
   document.getElementById('mShrtPx').textContent='$'+fmt(o.shortExchange==='Delta'?o.deltaPrice:o.dcxPrice)+' USD';
   let logic='';
-  if(o.scenarioType==='negative')logic=`<b>Both Negative Strategy:</b>\nLong ${o.longExchange} (${(o.longExchange==='Delta'?dF:cF).toFixed(4)}%) — RECEIVE this funding every 8h\nShort ${o.shortExchange} (${(o.shortExchange==='Delta'?dF:cF).toFixed(4)}%) — pay this, hedges all price risk\nNet collected: ${o.netYield.toFixed(4)}% — market direction irrelevant`;
-  else if(o.scenarioType==='positive')logic=`<b>Both Positive Strategy:</b>\nShort ${o.shortExchange} (${(o.shortExchange==='Delta'?dF:cF).toFixed(4)}%) — RECEIVE this funding every 8h\nLong ${o.longExchange} (${(o.longExchange==='Delta'?dF:cF).toFixed(4)}%) — pay this, hedges price\nNet: ${o.netYield.toFixed(4)}% per 8h`;
-  else{const pR=dF>0?dF:cF,nR=dF<0?dF:cF;logic=`<b>GOLDMINE — Collect from BOTH sides:</b>\nShort ${o.shortExchange} (+${pR.toFixed(4)}%): they PAY you to be short\nLong ${o.longExchange} (${nR.toFixed(4)}%): they PAY you to be long\nTotal: ${Math.abs(pR).toFixed(4)}% + ${Math.abs(nR).toFixed(4)}% = ${o.fundingDiff.toFixed(4)}% gross`;}
-  document.getElementById('mLogic').innerHTML=logic.replace(/\n/g,'<br>');
+  if(o.scenarioType==='negative')logic=`<b>Both Negative Strategy:</b><br>Long ${o.longExchange} (${(o.longExchange==='Delta'?dF:cF).toFixed(4)}%) — RECEIVE this funding every 8h<br>Short ${o.shortExchange} (${(o.shortExchange==='Delta'?dF:cF).toFixed(4)}%) — pay this, hedges all price risk<br>Net: ${o.netYield.toFixed(4)}% per 8h — market direction irrelevant`;
+  else if(o.scenarioType==='positive')logic=`<b>Both Positive Strategy:</b><br>Short ${o.shortExchange} (${(o.shortExchange==='Delta'?dF:cF).toFixed(4)}%) — RECEIVE this funding every 8h<br>Long ${o.longExchange} (${(o.longExchange==='Delta'?dF:cF).toFixed(4)}%) — pay this, hedges price<br>Net: ${o.netYield.toFixed(4)}% per 8h`;
+  else{const pR=dF>0?dF:cF,nR=dF<0?dF:cF;logic=`<b>GOLDMINE — Collect from BOTH sides:</b><br>Short ${o.shortExchange} (+${pR.toFixed(4)}%): they PAY you to be short<br>Long ${o.longExchange} (${nR.toFixed(4)}%): they PAY you to be long<br>Total: ${Math.abs(pR).toFixed(4)}% + ${Math.abs(nR).toFixed(4)}% = ${o.fundingDiff.toFixed(4)}% gross`;}
+  document.getElementById('mLogic').innerHTML=logic;
   document.getElementById('oRes').classList.remove('on');calcN();
 }
 function closeM(){document.getElementById('modal').classList.add('off');S.sel=null;}
@@ -546,7 +586,6 @@ async function execOrd(){
   }catch(e){toast('Order error: '+e.message,'err');}
   finally{btn.disabled=false;btn.textContent='Execute Both Orders Simultaneously';}
 }
-
 async function execExit(){
   const o=S.sel;if(!o)return;if(!confirm('Exit both for '+o.base+'?'))return;
   const btn=document.querySelector('.bexit');btn.disabled=true;btn.textContent='Exiting...';
@@ -559,12 +598,13 @@ function showRes(res){
   const el=document.getElementById('oRes');el.classList.add('on');
   const ok=res.delta?.ok&&res.dcx?.ok;el.className='ores on '+(ok?'rok':'rerr');
   const dE=JSON.stringify(res.delta?.error||''),cE=JSON.stringify(res.dcx?.error||'');
-  const ipE=dE.includes('ip_not_whitelisted');
+  const ipE=dE.includes('ip_not_whitelisted'),mgnE=dE.includes('insufficient_margin');
   let hints='';
-  if(ipE)hints+='<div class="ehint">Delta IP fix: API Keys → delete → create new → set IP whitelist 0.0.0.0 → save.</div>';
+  if(ipE)hints+='<div class="ehint">Delta IP Error: Go to Delta dashboard → API Keys → set IP whitelist to 0.0.0.0 → save.</div>';
+  if(mgnE)hints+='<div class="ehint">Insufficient margin on Delta — add USDT to your account.</div>';
   el.innerHTML=(res.latencyMs?`<div style="font-size:9px;color:var(--t3);margin-bottom:6px">Latency: ${res.latencyMs}ms</div>`:'')+
     `<div class="rsec"><div class="rlbl">Delta Exchange</div><b style="color:${res.delta?.ok?'var(--g)':'var(--r)'}">${res.delta?.ok?'ORDER PLACED':'FAILED'}</b>${res.delta?.orderId?'<br><small style="color:var(--t3)">ID: '+res.delta.orderId+'</small>':''}${!res.delta?.ok?'<br><small style="color:var(--t3)">'+dE+'</small>':''}</div>
-    <div class="rsec"><div class="rlbl">CoinDCX Futures</div><b style="color:${res.dcx?.ok?'var(--g)':'var(--r)'}">${res.dcx?.ok?'ORDER PLACED':'FAILED'}</b>${res.dcx?.orderId?'<br><small style="color:var(--t3)">ID: '+res.dcx.orderId+'</small>':''}${!res.dcx?.ok?'<br><small style="color:var(--t3)">'+cE+'</small>':''}</div>`+hints;
+    <div class="rsec"><div class="rlbl">CoinDCX</div><b style="color:${res.dcx?.ok?'var(--g)':'var(--r)'}">${res.dcx?.ok?'ORDER PLACED':'FAILED'}</b>${res.dcx?.orderId?'<br><small style="color:var(--t3)">ID: '+res.dcx.orderId+'</small>':''}${!res.dcx?.ok?'<br><small style="color:var(--t3)">'+cE+'</small>':''}</div>`+hints;
 }
 
 async function loadPos(){
@@ -572,9 +612,9 @@ async function loadPos(){
     const res=await api('/api/positions');
     [['dPos',res.delta,true],['cPos',res.dcx,false]].forEach(([id,data,isDelta])=>{
       const el=document.getElementById(id);
-      const items=isDelta?(data?.result||data?.data||[]):(data?.data||data?.positions||[]);
+      const items=isDelta?(data?.result||data?.data||[]):(data?.data||data?.orders||[]);
       if(!Array.isArray(items)||!items.length){el.innerHTML='<div style="padding:12px;color:var(--t3);font-size:11px">No open positions</div>';return;}
-      el.innerHTML=items.map(p=>{const sym=p.product_symbol||p.pair||p.symbol||'--';const sz=parseFloat(p.size||p.quantity||p.total_quantity||0);const side=sz>0?'LONG':sz<0?'SHORT':(p.side||'').toUpperCase();const ep=parseFloat(p.entry_price||p.entryPrice||p.avg_price||p.price||0);const pnl=parseFloat(p.unrealized_pnl||p.pnl||0);return `<div class="pit"><div class="psym">${sym} <span style="color:${side==='LONG'?'var(--g)':'var(--r)'};font-size:10px">${side}</span></div><div class="pmt">Size:<span>${Math.abs(sz)}</span> Entry:<span>$${fmt(ep)}</span> uPNL:<span style="color:${pnl>=0?'var(--g)':'var(--r)'}">${pnl.toFixed(4)}</span></div></div>`;}).join('');
+      el.innerHTML=items.map(p=>{const sym=p.product_symbol||p.symbol||'--';const sz=parseFloat(p.size||p.quantity||0);const side=sz>0?'LONG':sz<0?'SHORT':(p.side||'').toUpperCase();const ep=parseFloat(p.entry_price||p.entryPrice||p.price||0);const pnl=parseFloat(p.unrealized_pnl||p.pnl||0);return `<div class="pit"><div class="psym">${sym} <span style="color:${side==='LONG'?'var(--g)':'var(--r)'};font-size:10px">${side}</span></div><div class="pmt">Size:<span>${Math.abs(sz)}</span> Entry:<span>$${fmt(ep)}</span> uPNL:<span style="color:${pnl>=0?'var(--g)':'var(--r)'}">${pnl.toFixed(4)}</span></div></div>`;}).join('');
     });
   }catch(e){toast('Error: '+e.message,'err');}
 }
@@ -582,9 +622,8 @@ async function loadPos(){
 async function loadHist(){
   try{
     const res=await api('/api/history');
-    const rH=(tbId,items)=>{const tb=document.getElementById(tbId);if(!Array.isArray(items)||!items.length){tb.innerHTML='<tr><td colspan="7" style="padding:14px;color:var(--t3);text-align:center">No history</td></tr>';return;}tb.innerHTML=items.slice(0,50).map(o=>{const sym=o.product_symbol||o.pair||o.symbol||'--';const side=(o.side||o.orderSide||'').toUpperCase();const px=fmt(o.average_fill_price||o.price||o.avg_price||0);const ts=o.created_at||o.timestamp?new Date(o.created_at||o.timestamp).toLocaleString():'--';return `<tr><td>${sym}</td><td class="${side.includes('BUY')?'sbb':'sbs'}">${side}</td><td style="color:var(--t3)">${o.order_type||o.type||'--'}</td><td>${o.size||o.total_quantity||'--'}</td><td>$${px}</td><td style="color:var(--t3)">${o.state||o.status||'--'}</td><td style="color:var(--t3);font-size:10px">${ts}</td></tr>`;}).join('');};
-    rH('dHist',res.delta?.result||[]);
-    rH('cHist',res.dcx?.data||res.dcx?.orders||[]);
+    const rH=(tbId,items)=>{const tb=document.getElementById(tbId);if(!Array.isArray(items)||!items.length){tb.innerHTML='<tr><td colspan="7" style="padding:14px;color:var(--t3);text-align:center">No history</td></tr>';return;}tb.innerHTML=items.slice(0,50).map(o=>{const sym=o.product_symbol||o.symbol||'--';const side=(o.side||o.orderSide||'').toUpperCase();const px=fmt(o.average_fill_price||o.price||0);const ts=o.created_at||o.timestamp?new Date(o.created_at||o.timestamp).toLocaleString():'--';return `<tr><td>${sym}</td><td class="${side.includes('BUY')?'sbb':'sbs'}">${side}</td><td style="color:var(--t3)">${o.order_type||o.type||'--'}</td><td>${o.size||o.quantity||'--'}</td><td>$${px}</td><td style="color:var(--t3)">${o.state||o.status||'--'}</td><td style="color:var(--t3);font-size:10px">${ts}</td></tr>`;}).join('');};
+    rH('dHist',res.delta?.result||[]);rH('cHist',res.dcx?.trades||res.dcx?.data||res.dcx?.orders||[]);
   }catch(e){toast('Error: '+e.message,'err');}
 }
 
@@ -597,69 +636,144 @@ async function loadBal(){
   }catch(_){}
 }
 
-// DEBUG — very detailed output
-async function runDbg(){
-  const box=document.getElementById('dbgBox');box.classList.add('on');box.textContent='Testing both exchanges...\n';
+// ── DEBUG FUNCTIONS ───────────────────────────────────
+function dbgBox(){return document.getElementById('dbgBox');}
+function dbgWrite(html){const b=dbgBox();b.classList.add('on');b.innerHTML=html;}
+
+function fmtStep(s){
+  const t=s.trim();
+  if(t.startsWith('STEP'))return `<span class="sl-hd">${esc(t)}</span>`;
+  if(t.includes('FAILED')||t.includes('ERROR')||t.includes('error'))return `<span class="sl-err">${esc(t)}</span>`;
+  if(t.includes('HTTP 200')||t.includes('Parsed ')||t.includes('items')||t.includes('tickers')||t.includes('coins'))return `<span class="sl-ok">${esc(t)}</span>`;
+  return `<span class="sl-info">${esc(t)}</span>`;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function runDbgFull(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Running full debug test...</span>');
   try{
     const base=S.url.replace(/\/$/,'');
+    const [dr,cr]=await Promise.all([
+      fetch(base+'/debug/delta').then(r=>r.json()).catch(e=>({ok:false,error:e.message})),
+      fetch(base+'/debug/dcx').then(r=>r.json()).catch(e=>({ok:false,error:e.message}))
+    ]);
 
-    // Delta debug
-    let dRes={};
-    try{ dRes=await fetch(base+'/debug/delta').then(r=>r.json()); }
-    catch(e){ dRes={ok:false,error:e.message}; }
-
-    // DCX debug
-    let cRes={};
-    try{ cRes=await fetch(base+'/debug/dcx').then(r=>r.json()); }
-    catch(e){ cRes={ok:false,error:e.message}; }
-
-    let txt='';
-
-    // Delta output
-    txt+='══ DELTA EXCHANGE INDIA ══\n';
-    if(dRes.ok){
-      txt+=`✓ Connected — ${dRes.rawCount||0} raw contracts, ${dRes.parsed||0} parsed\n`;
-      (dRes.sample||[]).forEach(s=>{
-        const fr=parseFloat(s.fundingRate||0);
-        txt+=`  ${s.base}: $${fmt(s.price)} | fund=${fr>0?'+':''}${fr.toFixed(5)}%\n`;
-      });
-    }else{
-      txt+=`✗ FAILED: ${dRes.error}\n`;
+    let h='<span class="sl-hd">━━ DELTA EXCHANGE INDIA ━━</span>\n';
+    if(dr.ok){
+      h+=`<span class="sl-ok">✅ Connected — ${dr.count||0} futures, ${dr.parsed||0} parsed</span>\n`;
+      (dr.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+      (dr.sample||[]).forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)}: $${fmt(s.price)} <span class="${fr>0?'sl-ok':fr<0?'sl-err':'sl-info'}">fund=${fr.toFixed(5)}%</span>\n`;});
+    } else {
+      h+=`<span class="sl-err">❌ FAILED: ${esc(dr.error||'')}</span>\n`;
+      (dr.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
     }
 
-    // CoinDCX output — very detailed
-    txt+='\n══ COINDCX FUTURES ══\n';
-    txt+=`Key set: ${cRes.keySet?'YES':'NO'}\n`;
-    if(cRes.ok){
-      txt+=`✓ Connected — ${cRes.total||0} instruments, ${cRes.parsed||0} parsed\n`;
-      txt+=`  Source: ${cRes.source}\n`;
-      txt+=`  With funding rate: ${cRes.withFunding||0} coins\n`;
-      if(cRes.sampleCoins?.length) txt+=`  Coins: ${cRes.sampleCoins.join(', ')}\n`;
-      (cRes.sample||[]).forEach(s=>{
-        const fr=parseFloat(s.fundingRate||0);
-        txt+=`  ${s.base} [${s.symbol}]: $${fmt(s.price)} | fund=${fr>0?'+':''}${fr.toFixed(5)}%\n`;
-      });
-      if((cRes.withFunding||0)===0){
-        txt+=`\n⚠ All funding rates = 0.\n`;
-        txt+=`  CoinDCX may not expose funding rates in public endpoint.\n`;
-        txt+=`  Make sure DCX_KEY + DCX_SECRET are set in Railway Variables.\n`;
-      }
-    }else{
-      txt+=`✗ FAILED: ${cRes.error||'unknown'}\n`;
+    h+='\n<span class="sl-hd">━━ COINDCX ━━</span>\n';
+    if(cr.ok){
+      h+=`<span class="sl-ok">✅ Connected — ${cr.total||0} instruments, ${cr.parsed||0} parsed</span>\n`;
+      h+=`Source: <span class="sl-ok">${esc(cr.source||'?')}</span>\n`;
+      h+=`With funding rate: <span class="${(cr.withFunding||0)>0?'sl-ok':'sl-err'}">${cr.withFunding||0} coins</span>\n`;
+    } else {
+      h+=`<span class="sl-err">❌ FAILED — 0 coins parsed</span>\n`;
     }
+    h+='\n<span class="sl-hd">Step log:</span>\n';
+    (cr.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+    if((cr.errors||[]).length){
+      h+='\n<span class="sl-hd">Errors:</span>\n';
+      (cr.errors||[]).forEach(e=>{ h+=`<span class="sl-err">  ${esc(e)}</span>\n`; });
+    }
+    if((cr.sampleCoins||[]).length) h+=`\nCoins: <span class="sl-ok">${cr.sampleCoins.slice(0,12).join(', ')}</span>\n`;
+    (cr.sample||[]).forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)}: $${fmt(s.price)} <span class="${fr>0?'sl-ok':fr<0?'sl-err':'sl-info'}">fund=${fr.toFixed(5)}%</span>\n`;});
 
-    // Show what was tried
-    if(cRes.tried?.length){
-      txt+=`\n── Tried endpoints ──\n`;
-      cRes.tried.forEach(ep=>txt+=`  ${ep}\n`);
-    }
-    if(cRes.errors?.length){
-      txt+=`\n── Errors ──\n`;
-      cRes.errors.forEach(e=>txt+=`  ${e}\n`);
-    }
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
+}
 
-    box.textContent=txt;
-  }catch(e){box.textContent='Error: '+e.message;}
+async function runRawProbe(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Probing every CoinDCX endpoint individually...</span>');
+  try{
+    const base=S.url.replace(/\/$/,'');
+    const r=await fetch(base+'/debug/dcx-raw').then(x=>x.json());
+    let h='<span class="sl-hd">━━ RAW ENDPOINT PROBE ━━</span>\n\n';
+    h+='<table class="probe-tbl" style="font-size:10px"><thead><tr><th>Endpoint</th><th>Status</th><th>ms</th><th>Items</th><th>Fields</th><th>Error</th></tr></thead><tbody>';
+    for(const p of (r.probes||[])){
+      const ok=p.ok;
+      h+=`<tr>
+        <td style="color:var(--t2)">${esc(p.name)}</td>
+        <td><span class="${ok?'pok':'pfail'}">${ok?'✅ '+p.status:'❌ '+p.status}</span></td>
+        <td class="pms">${p.ms||'--'}</td>
+        <td style="color:${ok?'var(--g)':'var(--t3)'}">${ok?p.items:'--'}</td>
+        <td style="color:var(--t3);font-size:9px">${ok&&p.fields?esc(p.fields.slice(0,60)):'--'}</td>
+        <td style="color:var(--r);font-size:9px">${!ok?esc((p.error||'').slice(0,120)):''}</td>
+      </tr>`;
+    }
+    h+='</tbody></table>';
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
+}
+
+async function runDbgDelta(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Testing Delta Exchange only...</span>');
+  try{
+    const r=await fetch(S.url.replace(/\/$/,'')+'/debug/delta').then(x=>x.json());
+    let h='<span class="sl-hd">━━ DELTA EXCHANGE INDIA ━━</span>\n';
+    if(r.ok){h+=`<span class="sl-ok">✅ Connected — ${r.count} futures, ${r.parsed} parsed</span>\n`;}
+    else{h+=`<span class="sl-err">❌ FAILED: ${esc(r.error||'')}</span>\n`;}
+    (r.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+    (r.sample||[]).forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)}: $${fmt(s.price)} fund=${fr.toFixed(5)}%\n`;});
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
+}
+
+async function runDbgDcx(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Testing CoinDCX only (step-by-step)...</span>');
+  try{
+    const r=await fetch(S.url.replace(/\/$/,'')+'/debug/dcx').then(x=>x.json());
+    let h='<span class="sl-hd">━━ COINDCX DETAILED DEBUG ━━</span>\n';
+    h+=`Status: <span class="${r.ok?'sl-ok':'sl-err'}">${r.ok?'✅ OK':'❌ FAILED'}</span>\n`;
+    h+=`Source: ${esc(r.source||'none')}\n`;
+    h+=`Total instruments: ${r.total||0} | Parsed coins: ${r.parsed||0} | With funding: ${r.withFunding||0}\n\n`;
+    h+='<span class="sl-hd">Step-by-step log:</span>\n';
+    (r.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
+    if((r.errors||[]).length){
+      h+='\n<span class="sl-err">Errors:</span>\n';
+      r.errors.forEach(e=>{ h+=`<span class="sl-err">  ⚠ ${esc(e)}</span>\n`; });
+    }
+    if((r.sampleCoins||[]).length)h+=`\nParsed coins: <span class="sl-ok">${r.sampleCoins.join(', ')}</span>\n`;
+    if((r.sample||[]).length){h+='\n<span class="sl-hd">Sample data:</span>\n';r.sample.forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)} (${esc(s.symbol)}): $${fmt(s.price)} fund=${fr.toFixed(5)}%\n`;});}
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
+}
+
+async function runFieldDump(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Dumping raw API field structure...</span>');
+  try{
+    const r=await fetch(S.url.replace(/\/$/,'')+'/debug/dcx-fields').then(x=>x.json());
+    let h='<span class="sl-hd">━━ ACTIVE_INSTRUMENTS RAW FIELDS ━━</span>\n';
+    const ai=r.active_instruments||{};
+    if(ai.error){h+=`<span class="sl-err">❌ ${esc(ai.error)}</span>\n`;}
+    else{
+      h+=`Total: <span class="sl-ok">${ai.total||0}</span> | Fields: <span class="sl-ok">${(ai.fields||[]).join(', ')}</span>\n\n`;
+      (ai.items||[]).forEach((item,i)=>{h+=`<span class="sl-hd">Item ${i+1}:</span>\n`;Object.entries(item).forEach(([k,v])=>{h+=`  <span class="sl-info">${esc(k)}</span>: <span class="sl-ok">${esc(String(v))}</span>\n`;});h+='\n';});
+    }
+    h+='\n<span class="sl-hd">━━ TICKER FIELDS ━━</span>\n';
+    const tk=r.ticker||{};
+    if(tk.error){h+=`<span class="sl-err">❌ ${esc(tk.error)}</span>\n`;}
+    else{
+      h+=`Total tickers: <span class="sl-ok">${tk.total||0}</span> | Futures (B-*): <span class="sl-ok">${tk.futuresCount||0}</span>\n`;
+      h+=`Fields: <span class="sl-ok">${(tk.fields||[]).join(', ')}</span>\n\n`;
+      if((tk.sampleFutures||[]).length){
+        h+='<span class="sl-hd">Sample futures tickers (B-*):</span>\n';
+        tk.sampleFutures.forEach(t=>{h+=`  <span class="sl-info">market=${esc(t.market)}</span> last_price=<span class="sl-ok">${esc(String(t.last_price||0))}</span> funding_rate=<span class="sl-ok">${esc(String(t.funding_rate||'(none)'))}</span>\n`;});
+      } else {h+='<span class="sl-err">⚠ No futures tickers found (no B-* markets)!</span>\n';}
+    }
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
 }
 
 function startClk(){function tick(){const n=new Date(),s=n.getUTCHours()*3600+n.getUTCMinutes()*60+n.getUTCSeconds();const r=8*3600-(s%(8*3600));const h=Math.floor(r/3600),m=Math.floor((r%3600)/60),sc=r%60;document.getElementById('ftime').textContent=(h>0?h+':':'')+pad(m)+':'+pad(sc);document.getElementById('fdot').classList.toggle('on',r<=600);}tick();setInterval(tick,1000);}
