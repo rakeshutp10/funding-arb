@@ -11,62 +11,43 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 
-// ─────────────────────────────────────────────────────
-//  API KEYS  — set in Railway → your service → Variables
-//  NEVER put real keys in this file
-// ─────────────────────────────────────────────────────
 const DELTA_KEY    = process.env.DELTA_KEY    || '';
 const DELTA_SECRET = process.env.DELTA_SECRET || '';
 const DCX_KEY      = process.env.DCX_KEY      || '';
 const DCX_SECRET   = process.env.DCX_SECRET   || '';
 
-// ─────────────────────────────────────────────────────
-//  ERROR HELPER — detailed human-readable error
-// ─────────────────────────────────────────────────────
 function errMsg(e) {
   if (!e) return 'Unknown error';
   if (e.response) {
-    const status = e.response.status;
-    const data   = e.response.data;
-    const body   = typeof data === 'object' ? JSON.stringify(data) : String(data || '');
-    return `HTTP ${status} — ${body.slice(0, 400)}`;
+    const s = e.response.status;
+    const b = typeof e.response.data === 'object'
+      ? JSON.stringify(e.response.data) : String(e.response.data || '');
+    return `HTTP ${s} — ${b.slice(0, 300)}`;
   }
-  if (e.code) return `${e.code}: ${e.message}`;
-  if (e.message) return e.message;
-  return String(e);
+  return e.code ? `${e.code}: ${e.message}` : (e.message || String(e));
 }
 
-// ─────────────────────────────────────────────────────
-//  DELTA EXCHANGE INDIA
-// ─────────────────────────────────────────────────────
+// ─── DELTA EXCHANGE INDIA ────────────────────────────
 const DELTA_BASE = 'https://api.india.delta.exchange';
 
 function dSign(method, ep, qs, body, ts) {
   return crypto.createHmac('sha256', DELTA_SECRET)
     .update(method + ts + ep + qs + body).digest('hex');
 }
-
 async function dPub(ep, params = {}) {
   const qs = Object.keys(params).length ? '?' + new URLSearchParams(params) : '';
-  const r  = await axios.get(DELTA_BASE + ep + qs, {
-    timeout: 12000, headers: { Accept: 'application/json' }
-  });
-  return r.data;
+  return (await axios.get(DELTA_BASE + ep + qs, { timeout: 12000, headers: { Accept: 'application/json' } })).data;
 }
-
 async function dAuth(method, ep, query = {}, body = null) {
   const ts  = Math.floor(Date.now() / 1000).toString();
   const qs  = Object.keys(query).length ? '?' + new URLSearchParams(query) : '';
   const bs  = body ? JSON.stringify(body) : '';
   const sig = dSign(method, ep, qs, bs, ts);
-  const cfg = {
-    method, url: DELTA_BASE + ep + qs, timeout: 12000,
-    headers: { 'api-key': DELTA_KEY, timestamp: ts, signature: sig, 'Content-Type': 'application/json' }
-  };
+  const cfg = { method, url: DELTA_BASE + ep + qs, timeout: 12000,
+    headers: { 'api-key': DELTA_KEY, timestamp: ts, signature: sig, 'Content-Type': 'application/json' } };
   if (body) cfg.data = body;
   return (await axios(cfg)).data;
 }
-
 function parseDelta(raw) {
   const list = raw?.result || raw?.data?.result || raw?.data || [];
   const map  = {};
@@ -77,217 +58,206 @@ function parseDelta(raw) {
     if (price <= 0) continue;
     const fr = parseFloat(t.funding_rate || t.funding_rate_8h || 0);
     map[base] = {
-      symbol:      t.symbol || '',
-      productId:   t.id || t.product_id,
-      price,
+      symbol: t.symbol || '', productId: t.id || t.product_id, price,
       fundingRate: +(fr * 100).toFixed(6),
-      volume24h:   parseFloat(t.volume || t.turnover_usd || 0),
-      change24h:   parseFloat(t.price_change_percent || 0),
+      volume24h: parseFloat(t.volume || t.turnover_usd || 0),
+      change24h: parseFloat(t.price_change_percent || 0),
       nextFunding: t.next_funding_realization || null
     };
   }
   return map;
 }
 
-// ─────────────────────────────────────────────────────
-//  COINDCX
-// ─────────────────────────────────────────────────────
+// ─── COINDCX ─────────────────────────────────────────
 const DCX_BASE = 'https://api.coindcx.com';
 
 function cSign(bodyObj) {
-  return crypto.createHmac('sha256', DCX_SECRET)
-    .update(JSON.stringify(bodyObj)).digest('hex');
+  return crypto.createHmac('sha256', DCX_SECRET).update(JSON.stringify(bodyObj)).digest('hex');
 }
-
-async function cPub(ep, params = {}) {
+async function cGet(ep, params = {}) {
   const qs = Object.keys(params).length ? '?' + new URLSearchParams(params) : '';
-  const r  = await axios.get(DCX_BASE + ep + qs, {
-    timeout: 12000, headers: { Accept: 'application/json' }
-  });
-  return r.data;
+  return (await axios.get(DCX_BASE + ep + qs, { timeout: 12000, headers: { Accept: 'application/json' } })).data;
 }
-
 async function cAuth(ep, bodyObj = {}) {
   const body = { ...bodyObj, timestamp: Date.now() };
   const sig  = cSign(body);
-  const r    = await axios.post(DCX_BASE + ep, body, {
+  return (await axios.post(DCX_BASE + ep, body, {
     timeout: 12000,
     headers: { 'X-AUTH-APIKEY': DCX_KEY, 'X-AUTH-SIGNATURE': sig, 'Content-Type': 'application/json' }
-  });
-  return r.data;
+  })).data;
 }
 
-function dcxBase(sym, c) {
-  const short = (c.base_currency_short_name || c.base_currency || c.base || '').toUpperCase();
-  if (short && short.length >= 2 && short.length <= 10) return short;
-  const s = sym.toUpperCase();
-  if (s.startsWith('B-'))  return s.slice(2).split(/[_-]/)[0];
-  if (s.includes('PERP'))  return s.replace(/_?PERP.*/,'').replace(/_?USDT?$/,'').replace(/_/g,'');
-  if (s.includes('FUT'))   return s.replace(/_?FUT.*/,'').replace(/_?USDT?$/,'').replace(/_/g,'');
-  if (s.includes('_USDT')) return s.split('_USDT')[0].replace(/_/g,'');
-  if (s.endsWith('USDT'))  return s.slice(0,-4);
-  if (s.includes('_USD'))  return s.split('_USD')[0].replace(/_/g,'');
-  if (s.endsWith('USD'))   return s.slice(0,-3);
-  return '';
+// Extract base coin from CoinDCX pair name e.g. "B-1000CAT_USDT" → "1000CAT"
+function pairToBase(pair) {
+  // "B-BTC_USDT" → strip "B-" prefix → "BTC_USDT" → split on "_" → "BTC"
+  let s = pair.toUpperCase();
+  if (s.startsWith('B-')) s = s.slice(2);                  // "BTC_USDT"
+  const parts = s.split('_');
+  const base  = parts[0];                                    // "BTC"
+  return base && base.length >= 2 && base.length <= 15 ? base : '';
 }
 
+// ── fetchDCX: correct approach based on actual API structure ──
 async function fetchDCX() {
   const result = { map: {}, ok: false, source: 'none', total: 0, errors: [], steps: [] };
   const log    = (m) => { result.steps.push(m); console.log('[DCX]', m); };
 
-  // ══════════════════════════════════════════════════════════
-  //  STEP 1 — Live ticker  (always runs — this is the price source)
-  //  /exchange/ticker returns 1000+ entries including futures
-  //  Futures pairs have market like "B-BTC_USDT"
-  // ══════════════════════════════════════════════════════════
-  log('STEP 1 — /exchange/ticker (price source)...');
-  let tickerMap = {};
+  // ══ STEP 1: Build spot ticker map (price source) ══════════
+  // /exchange/ticker has SPOT pairs like "BTCUSDT", "ETHUSDT"
+  // Perpetuals track spot closely — use spot price as proxy
+  log('STEP 1 — /exchange/ticker for spot price lookup...');
+  const tickerMap = {};  // key: "BTCUSDT" → ticker object
   try {
     const start = Date.now();
-    const arr   = await cPub('/exchange/ticker');
+    const arr   = await cGet('/exchange/ticker');
     if (Array.isArray(arr)) {
-      arr.forEach(t => { tickerMap[(t.market||'').toUpperCase()] = t; });
+      arr.forEach(t => {
+        const m = (t.market || '').toUpperCase();
+        tickerMap[m] = t;
+      });
     }
-    log(`  ✅ ${Object.keys(tickerMap).length} tickers (${Date.now()-start}ms)`);
+    log(`  ✅ ${Object.keys(tickerMap).length} spot tickers (${Date.now()-start}ms)`);
+    // Debug: show a few BTC pairs to confirm key format
+    const btcPairs = Object.keys(tickerMap).filter(k => k.startsWith('BTC')).slice(0,5);
+    log(`  Sample BTC keys: ${btcPairs.join(', ')}`);
   } catch (e) {
     const m = `ticker FAILED: ${errMsg(e)}`; log(`  ❌ ${m}`); result.errors.push(m);
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  STEP 2 — active_instruments (pair metadata + funding rate)
-  //  Returns ~440 instruments — pairs like "B-BTC_USDT"
-  //  Likely has: pair, base_currency_short_name, funding_rate
-  //  Does NOT have live price — we use ticker for that
-  // ══════════════════════════════════════════════════════════
-  log('STEP 2 — active_instruments (pair list + funding)...');
-  let instruments = [];
-  for (const mode of ['USDT', 'BTC']) {
+  // ══ STEP 2: Get active futures pair list ═════════════════
+  // Returns string[] like ["B-BTC_USDT", "B-ETH_USDT", ...]
+  log('STEP 2 — active_instruments for futures pair list...');
+  let pairList = [];
+  for (const mode of ['USDT', 'INR']) {
     const url = `${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=${mode}`;
     try {
-      const start = Date.now();
-      const r     = await axios.get(url, { timeout: 12000, headers: { Accept: 'application/json' } });
-      const list  = Array.isArray(r.data) ? r.data
-                  : (r.data?.data || r.data?.instruments || r.data?.result || []);
-      log(`  [${mode}] HTTP ${r.status} → ${list.length} items (${Date.now()-start}ms)`);
-      if (list.length) {
-        // Log actual field names of first item so we always know structure
-        if (list[0]) log(`  [${mode}] fields: ${Object.keys(list[0]).slice(0,15).join(', ')}`);
-        instruments = instruments.concat(list);
+      const r = await axios.get(url, { timeout: 12000, headers: { Accept: 'application/json' } });
+      const raw = r.data;
+      // Response is string[] OR object[]
+      if (Array.isArray(raw)) {
+        raw.forEach(item => {
+          const pairStr = typeof item === 'string' ? item : (item.pair || item.symbol || item.coindcx_name || '');
+          if (pairStr && pairStr.startsWith('B-')) pairList.push(pairStr.toUpperCase());
+        });
+        log(`  [${mode}] HTTP ${r.status} → ${raw.length} items → ${pairList.length} valid B-* pairs so far`);
+        if (raw.length > 0) log(`  [${mode}] Sample: ${raw.slice(0,3).map(x=>typeof x==='string'?x:JSON.stringify(x)).join(', ')}`);
       }
     } catch (e) {
-      const m = `active_instruments[${mode}] FAILED: ${errMsg(e)}`;
+      const m = `active_instruments[${mode}]: ${errMsg(e)}`;
       log(`  ❌ ${m}`); result.errors.push(m);
     }
   }
 
-  if (instruments.length > 0) {
-    result.source = '/exchange/v1/derivatives/futures/data/active_instruments + /exchange/ticker';
-    result.total  = instruments.length;
-    log(`  Combining ${instruments.length} instruments with ticker prices...`);
-    let priceHits = 0, priceMiss = 0;
-
-    for (const c of instruments) {
-      // CoinDCX futures pair format: "B-BTC_USDT"
-      const pair = (c.pair || c.symbol || c.coindcx_name || c.market || '').toUpperCase();
-      if (!pair) continue;
-
-      // Extract base currency
-      const base = dcxBase(pair, c);
-      if (!base || base.length < 2 || base.length > 10) continue;
-
-      // ── Price: try ticker first (most reliable) ───────────
-      // For "B-BTC_USDT", ticker key is also "B-BTC_USDT"
-      const ticker = tickerMap[pair]
-                  || tickerMap['B-' + base + '_USDT']
-                  || tickerMap[base + 'USDT'];
-
-      let price = parseFloat(
-        c.mark_price ?? c.last_price ?? c.ltp ?? c.close ?? c.price ?? 0
-      );
-      if (price <= 0 && ticker) price = parseFloat(ticker.last_price || ticker.ltp || 0);
-      if (price <= 0) { priceMiss++; continue; }
-      priceHits++;
-
-      // ── Funding rate ──────────────────────────────────────
-      // active_instruments may have: funding_rate, current_funding_rate, predicted_funding_rate
-      let fr = parseFloat(
-        c.funding_rate            ??
-        c.current_funding_rate    ??
-        c.predicted_funding_rate  ??
-        c.predicted_rate          ??
-        c.next_funding_rate       ??
-        0
-      );
-      if (fr === 0 && ticker) fr = parseFloat(ticker.funding_rate || 0);
-      // Normalise: some endpoints return 0.0001 meaning 0.01%
-      if (fr !== 0 && Math.abs(fr) < 0.0001) fr = fr * 100;
-
-      result.map[base] = {
-        symbol:      pair,
-        price,
-        fundingRate: +fr.toFixed(6),
-        volume24h:   parseFloat(c.volume_24h ?? c.volume ?? ticker?.volume ?? 0),
-        change24h:   parseFloat(c.change_24h ?? c.price_change_24h ?? ticker?.change_24_hour ?? 0),
-        nextFunding: c.next_funding_time ?? c.next_funding_at ?? null
-      };
+  // ══ STEP 3: Try bulk funding rate endpoint ════════════════
+  // CoinDCX might have a bulk endpoint — try several
+  log('STEP 3 — trying bulk funding rate endpoints...');
+  const fundingMap = {};  // base → funding rate %
+  const bulkFundingEps = [
+    '/exchange/v1/derivatives/futures/data/funding_rates',
+    '/exchange/v1/derivatives/futures/data/ltp',
+    '/exchange/v1/derivatives/futures/data/current_prices',
+    '/exchange/v1/derivatives/futures/data/pair_stats',
+  ];
+  for (const ep of bulkFundingEps) {
+    try {
+      const r = await axios.get(DCX_BASE + ep, { timeout: 8000, headers: { Accept: 'application/json' } });
+      const d = r.data;
+      log(`  ${ep} → HTTP ${r.status}, type=${typeof d}, len=${Array.isArray(d)?d.length:'obj'}`);
+      if (Array.isArray(d) && d.length > 0) {
+        log(`  Fields: ${Object.keys(d[0]).join(', ')}`);
+        d.forEach(item => {
+          const pair = (item.pair || item.symbol || item.market || '').toUpperCase();
+          const base = pair.startsWith('B-') ? pairToBase(pair) : '';
+          const fr   = parseFloat(item.funding_rate || item.current_funding_rate || item.fr || 0);
+          if (base && fr !== 0) fundingMap[base] = fr;
+        });
+        log(`  Got ${Object.keys(fundingMap).length} funding rates`);
+        if (Object.keys(fundingMap).length > 0) break;
+      }
+    } catch (e) {
+      log(`  ${ep} → ${errMsg(e).slice(0,80)}`);
     }
-
-    const parsed = Object.keys(result.map).length;
-    log(`  Price hits: ${priceHits}, Price miss (no ticker match): ${priceMiss}`);
-    log(`  ✅ Parsed ${parsed} coins with price data.`);
-    if (parsed > 0) {
-      result.ok = true;
-      return result;
-    }
-    log('  ⚠ 0 coins had price data from ticker — this means ticker keys don\'t match pair names');
-    log('  Sample instrument pairs: ' + instruments.slice(0,5).map(c=>c.pair||c.symbol||c.market||'?').join(', '));
-    log('  Sample ticker keys: ' + Object.keys(tickerMap).filter(k=>k.startsWith('B-')).slice(0,5).join(', '));
-  } else {
-    log('  ⚠ active_instruments returned 0 items');
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  STEP 3 — Ticker-only parse (futures pairs start with "B-")
-  //  If active_instruments is empty or pricing fails,
-  //  extract futures data directly from the ticker response
-  // ══════════════════════════════════════════════════════════
-  log('STEP 3 — Extracting futures pairs directly from ticker (B-* pairs)...');
-  let tickerFutCount = 0;
-  for (const [market, t] of Object.entries(tickerMap)) {
-    // CoinDCX futures pairs: "B-BTC_USDT", "B-ETH_USDT" etc.
-    if (!market.startsWith('B-')) continue;
-    const base = dcxBase(market, {});
-    if (!base || base.length < 2 || base.length > 10) continue;
-    const price = parseFloat(t.last_price || t.ltp || 0);
-    if (price <= 0) continue;
-    const fr = parseFloat(t.funding_rate || 0);
+  // ══ STEP 4: Try per-instrument details (batch, for funding) ══
+  // Only if we have pairs but no funding rates yet
+  if (pairList.length > 0 && Object.keys(fundingMap).length === 0) {
+    log(`STEP 4 — per-instrument details for funding (sampling first 5)...`);
+    const samplePairs = pairList.filter(p => p.endsWith('_USDT')).slice(0, 5);
+    for (const pair of samplePairs) {
+      try {
+        const ep = `/exchange/v1/derivatives/futures/data/instrument_details`;
+        const r  = await axios.get(DCX_BASE + ep, {
+          params: { pair, margin_currency_short_name: 'USDT' },
+          timeout: 8000, headers: { Accept: 'application/json' }
+        });
+        const d = r.data;
+        log(`  ${pair} → HTTP ${r.status} fields: ${Object.keys(d?.instrument||d||{}).join(', ').slice(0,100)}`);
+        const instr = d?.instrument || d;
+        const fr = parseFloat(instr?.funding_rate || instr?.current_funding_rate || 0);
+        const base = pairToBase(pair);
+        if (fr !== 0 && base) fundingMap[base] = fr;
+      } catch (e) {
+        log(`  ${pair} details → ${errMsg(e).slice(0,80)}`);
+      }
+    }
+  }
+
+  // ══ STEP 5: Build result map ══════════════════════════════
+  // Map each "B-X_USDT" pair to a price from spot ticker
+  log(`STEP 5 — building result from ${pairList.length} pairs...`);
+  let hits = 0, misses = 0;
+
+  for (const pair of pairList) {
+    const base = pairToBase(pair);
+    if (!base) { misses++; continue; }
+
+    // Try to find price in spot ticker
+    // "B-BTC_USDT" → base="BTC" → try "BTCUSDT", "BTCINR" etc.
+    const suffix = pair.endsWith('_USDT') ? 'USDT' : pair.endsWith('_INR') ? 'INR' : 'USDT';
+    const spotKey = base + suffix;                        // e.g. "BTCUSDT"
+    const ticker  = tickerMap[spotKey] || tickerMap[base + 'USDT'];
+
+    let price = 0;
+    if (ticker) price = parseFloat(ticker.last_price || 0);
+    if (price <= 0) { misses++; continue; }
+
+    const fr = fundingMap[base] || 0;
+    hits++;
+
     result.map[base] = {
-      symbol:      market,
+      symbol:      pair,
       price,
       fundingRate: +fr.toFixed(6),
-      volume24h:   parseFloat(t.volume || 0),
-      change24h:   parseFloat(t.change_24_hour || 0),
+      volume24h:   parseFloat(ticker?.volume || 0),
+      change24h:   parseFloat(ticker?.change_24_hour || 0),
       nextFunding: null
     };
-    tickerFutCount++;
   }
 
-  const parsed3 = Object.keys(result.map).length;
-  log(`  Futures pairs in ticker (B-*): ${tickerFutCount}, parsed: ${parsed3}`);
-  if (parsed3 > 0) {
-    result.source = '/exchange/ticker (futures B-* pairs)';
+  result.total = pairList.length;
+  log(`  Price hits: ${hits} | Misses (no spot ticker): ${misses}`);
+
+  if (hits > 0) {
     result.ok     = true;
-    return result;
+    result.source = 'active_instruments + /exchange/ticker (spot proxy)';
+    log(`  ✅ ${hits} coins ready`);
+  } else {
+    log(`  ❌ 0 coins — check spot ticker key format vs pair base names`);
+    // Debug: show what keys exist in ticker for investigation
+    const sampleKeys = Object.keys(tickerMap).slice(0, 10).join(', ');
+    log(`  Ticker sample keys: ${sampleKeys}`);
+    if (pairList.length > 0) {
+      log(`  First 5 pairs: ${pairList.slice(0,5).join(', ')}`);
+      log(`  First 5 derived spotKeys: ${pairList.slice(0,5).map(p => pairToBase(p)+'USDT').join(', ')}`);
+    }
+    result.errors.push(`No price match found. ${pairList.length} pairs, ${Object.keys(tickerMap).length} ticker keys.`);
   }
 
-  log('  ⚠ No B-* futures pairs found in ticker either');
-  result.errors.push('No price data found via any method. Check if CoinDCX futures pairs use B-* naming.');
   return result;
 }
 
-// ─────────────────────────────────────────────────────
-//  STRATEGY
-// ─────────────────────────────────────────────────────
+// ─── STRATEGY ────────────────────────────────────────
 function calcStrat(dR, cR) {
   const diff = Math.abs(dR - cR);
   const net  = +(diff - 0.10).toFixed(6);
@@ -305,40 +275,29 @@ function calcStrat(dR, cR) {
   return { longEx, shortEx, scenario, scenarioType, diff:+diff.toFixed(6), net };
 }
 
-// ─────────────────────────────────────────────────────
-//  HEALTH
-// ─────────────────────────────────────────────────────
+// ─── HEALTH ──────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({
-  status:'ok', version:'13.0.0', port:PORT,
+  status:'ok', version:'14.0.0', port:PORT,
   deltaKeySet:!!DELTA_KEY, dcxKeySet:!!DCX_KEY, ts:Date.now()
 }));
 
-// ─────────────────────────────────────────────────────
-//  DEBUG — Delta
-// ─────────────────────────────────────────────────────
+// ─── DEBUG: Delta ─────────────────────────────────────
 app.get('/debug/delta', async (_req, res) => {
   const steps = [];
-  const log   = (m) => { steps.push(m); console.log('[DBG-DELTA]', m); };
+  const log   = m => { steps.push(m); console.log('[DBG-D]', m); };
   try {
     log('Calling /v2/tickers?contract_types=perpetual_futures ...');
-    const d   = await dPub('/v2/tickers', { contract_types:'perpetual_futures' });
+    const d   = await dPub('/v2/tickers', { contract_types: 'perpetual_futures' });
     const raw = d?.result || d?.data || [];
-    log(`Raw tickers received: ${raw.length}`);
+    log(`Raw: ${raw.length}`);
     const map = parseDelta(d);
     log(`Parsed: ${Object.keys(map).length} coins`);
-    res.json({
-      ok:true, count:raw.length, parsed:Object.keys(map).length, steps,
-      sample:Object.entries(map).slice(0,5).map(([b,v])=>({base:b,price:v.price,fundingRate:v.fundingRate,symbol:v.symbol}))
-    });
-  } catch(e) {
-    log('ERROR: '+errMsg(e));
-    res.json({ ok:false, error:errMsg(e), steps });
-  }
+    res.json({ ok:true, count:raw.length, parsed:Object.keys(map).length, steps,
+      sample: Object.entries(map).slice(0,5).map(([b,v])=>({base:b,price:v.price,fundingRate:v.fundingRate})) });
+  } catch(e) { log('ERROR: '+errMsg(e)); res.json({ ok:false, error:errMsg(e), steps }); }
 });
 
-// ─────────────────────────────────────────────────────
-//  DEBUG — CoinDCX (full step-by-step diagnostics)
-// ─────────────────────────────────────────────────────
+// ─── DEBUG: CoinDCX full diagnostic ──────────────────
 app.get('/debug/dcx', async (_req, res) => {
   try {
     const r  = await fetchDCX();
@@ -347,82 +306,44 @@ app.get('/debug/dcx', async (_req, res) => {
       ok:r.ok, source:r.source, total:r.total,
       parsed:Object.keys(r.map).length, withFunding:wf,
       steps:r.steps, errors:r.errors,
-      sampleCoins:Object.keys(r.map).slice(0,12),
-      sample:Object.entries(r.map).slice(0,5).map(([b,v])=>({base:b,symbol:v.symbol,price:v.price,fundingRate:v.fundingRate}))
+      sampleCoins: Object.keys(r.map).slice(0,12),
+      sample: Object.entries(r.map).slice(0,5).map(([b,v])=>({base:b,symbol:v.symbol,price:v.price,fundingRate:v.fundingRate}))
     });
-  } catch(e) {
-    res.json({ ok:false, error:errMsg(e), steps:[], errors:[errMsg(e)] });
-  }
+  } catch(e) { res.json({ ok:false, error:errMsg(e), steps:[], errors:[errMsg(e)] }); }
 });
 
-// ─────────────────────────────────────────────────────
-//  DEBUG — Raw probe of every DCX endpoint
-// ─────────────────────────────────────────────────────
+// ─── DEBUG: Raw probe all DCX endpoints ──────────────
 app.get('/debug/dcx-raw', async (_req, res) => {
   const probes = [
     { name:'active_instruments[USDT]', url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=USDT` },
-    { name:'active_instruments[BTC]',  url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=BTC` },
-    { name:'funding_rates',            url:`${DCX_BASE}/exchange/v1/derivatives/futures/funding_rates` },
-    { name:'contracts (futures)',      url:`${DCX_BASE}/exchange/v1/derivatives/futures/contracts` },
-    { name:'contracts (derivatives)',  url:`${DCX_BASE}/exchange/v1/derivatives/contracts` },
+    { name:'active_instruments[INR]',  url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=INR` },
+    { name:'instrument_details[BTC]',  url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/instrument_details?pair=B-BTC_USDT&margin_currency_short_name=USDT` },
+    { name:'funding_rates',            url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/funding_rates` },
+    { name:'ltp',                      url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/ltp` },
+    { name:'current_prices',           url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/current_prices` },
+    { name:'pair_stats',               url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/pair_stats` },
+    { name:'trades[BTC]',              url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/trades?pair=B-BTC_USDT` },
     { name:'ticker',                   url:`${DCX_BASE}/exchange/ticker` },
   ];
   const results = [];
   for (const p of probes) {
     try {
       const start = Date.now();
-      const r     = await axios.get(p.url, { timeout:12000, headers:{ Accept:'application/json' } });
+      const r     = await axios.get(p.url, { timeout:10000, headers:{ Accept:'application/json' } });
       const data  = r.data;
-      const len   = Array.isArray(data) ? data.length
-                  : (data?.data?.length||data?.result?.length||data?.instruments?.length||'(object)');
-      const peek  = Array.isArray(data)&&data[0] ? Object.keys(data[0]).slice(0,8).join(', ') : 'n/a';
-      results.push({ name:p.name, ok:true, status:r.status, ms:Date.now()-start, items:len, fields:peek });
+      const len   = Array.isArray(data) ? data.length : (typeof data === 'object' ? Object.keys(data).length : '?');
+      const first = Array.isArray(data) && data[0]
+        ? (typeof data[0]==='string' ? `string: "${data[0]}"` : `object keys: ${Object.keys(data[0]).join(', ')}`)
+        : (typeof data==='object' ? `keys: ${Object.keys(data).join(', ')}` : String(data).slice(0,80));
+      results.push({ name:p.name, ok:true, status:r.status, ms:Date.now()-start, items:len, first:first.slice(0,200) });
     } catch(e) {
-      results.push({ name:p.name, ok:false, status:e.response?.status||'NO_RESPONSE', error:errMsg(e) });
+      results.push({ name:p.name, ok:false, status:e.response?.status||'ERR', error:errMsg(e).slice(0,150) });
     }
   }
   res.json({ ts:Date.now(), probes:results });
 });
 
-// ─────────────────────────────────────────────────────
-//  SCAN
-// ─────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────
-//  DEBUG — Raw field dump from active_instruments
-// ─────────────────────────────────────────────────────
-app.get('/debug/dcx-fields', async (_req, res) => {
-  const out = { ts: Date.now(), active_instruments: {}, ticker: {} };
-  try {
-    const url = `${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=USDT`;
-    const r   = await axios.get(url, { timeout: 12000, headers: { Accept: 'application/json' } });
-    const list = Array.isArray(r.data) ? r.data : (r.data?.data || []);
-    out.active_instruments = {
-      total:  list.length,
-      fields: list[0] ? Object.keys(list[0]) : [],
-      items:  list.slice(0, 3)
-    };
-  } catch (e) { out.active_instruments = { error: errMsg(e) }; }
-
-  try {
-    const arr = await cPub('/exchange/ticker');
-    if (Array.isArray(arr)) {
-      const futures = arr.filter(t => (t.market||'').startsWith('B-'));
-      out.ticker = {
-        total:        arr.length,
-        futuresCount: futures.length,
-        fields:       arr[0] ? Object.keys(arr[0]) : [],
-        sampleAll:    arr.slice(0,2),
-        sampleFutures: futures.slice(0,5)
-      };
-    }
-  } catch (e) { out.ticker = { error: errMsg(e) }; }
-
-  res.json(out);
-});
-
-// ─────────────────────────────────────────────────────
-//  SCAN
-// ─────────────────────────────────────────────────────
+// ─── SCAN ────────────────────────────────────────────
 app.post('/api/scan', async (_req, res) => {
   try {
     const [dR, cR] = await Promise.allSettled([
@@ -438,7 +359,7 @@ app.post('/api/scan', async (_req, res) => {
     const opps = [];
     for (const [base, d] of Object.entries(deltaMap)) {
       const c = dcxMap[base];
-      if (!c||d.price<=0||c.price<=0) continue;
+      if (!c || d.price<=0 || c.price<=0) continue;
       const { longEx, shortEx, scenario, scenarioType, diff, net } = calcStrat(d.fundingRate, c.fundingRate);
       const avg  = (d.price+c.price)/2;
       const spr  = avg>0 ? +((Math.abs(d.price-c.price)/avg)*100).toFixed(4) : 0;
@@ -462,19 +383,16 @@ app.post('/api/scan', async (_req, res) => {
       success:true, data:opps, count:opps.length,
       deltaCount:Object.keys(deltaMap).length, dcxCount:Object.keys(dcxMap).length,
       deltaOk, dcxOk,
-      dcxSteps:  dcxRaw.steps  || [],
-      dcxErrors: dcxRaw.errors || [],
-      dcxSource: dcxRaw.source || 'none',
+      dcxSteps: dcxRaw.steps||[], dcxErrors: dcxRaw.errors||[],
+      dcxSource: dcxRaw.source||'none',
       deltaError: dR.status==='rejected' ? errMsg(dR.reason) : null,
-      dcxError:   (!dcxOk&&dcxRaw.errors?.length) ? dcxRaw.errors.join(' | ') : null,
-      ts:Date.now()
+      dcxError:   (!dcxOk && dcxRaw.errors?.length) ? dcxRaw.errors.join(' | ') : null,
+      ts: Date.now()
     });
   } catch(e) { res.status(500).json({ success:false, error:errMsg(e) }); }
 });
 
-// ─────────────────────────────────────────────────────
-//  ORDER
-// ─────────────────────────────────────────────────────
+// ─── ORDER ───────────────────────────────────────────
 app.post('/api/order', async (req, res) => {
   const { deltaProductId, dcxSymbol, longExchange, quantity, leverage, orderType, limitPriceDelta, limitPriceDcx } = req.body;
   if (!DELTA_KEY||!DCX_KEY) return res.status(400).json({ success:false, error:'API keys not set in Railway Variables.' });
@@ -484,63 +402,60 @@ app.post('/api/order', async (req, res) => {
     order_type:orderType==='limit'?'limit_order':'market_order',
     ...(orderType==='limit'&&limitPriceDelta&&{limit_price:String(limitPriceDelta)}) };
   if (leverage) dBody.leverage = String(leverage);
-  const cBody = { market:dcxSymbol, side:cSide, order_type:orderType==='limit'?'limit_order':'market_order',
-    quantity:parseFloat(quantity), ...(leverage&&{leverage:parseInt(leverage)}),
+  const cBody = { pair:dcxSymbol, side:cSide,
+    order_type:orderType==='limit'?'limit_order':'market_order',
+    total_quantity:parseFloat(quantity), ...(leverage&&{leverage:parseInt(leverage)}),
     ...(orderType==='limit'&&limitPriceDcx&&{price:parseFloat(limitPriceDcx)}) };
   const t0 = Date.now();
   const [dr, cr] = await Promise.allSettled([
     dAuth('POST','/v2/orders',{},dBody),
-    cAuth('/exchange/v1/orders/create',cBody)
+    cAuth('/exchange/v1/derivatives/futures/orders/create', cBody)
   ]);
   res.json({
     success:true, latencyMs:Date.now()-t0,
-    bothOk:dr.status==='fulfilled'&&cr.status==='fulfilled',
-    delta:dr.status==='fulfilled'?{ok:true,orderId:dr.value?.result?.id||dr.value?.id}:{ok:false,error:errMsg(dr.reason)},
-    dcx:cr.status==='fulfilled'?{ok:true,orderId:cr.value?.orders?.[0]?.id||cr.value?.id}:{ok:false,error:errMsg(cr.reason)}
+    bothOk: dr.status==='fulfilled'&&cr.status==='fulfilled',
+    delta: dr.status==='fulfilled'?{ok:true,orderId:dr.value?.result?.id||dr.value?.id}:{ok:false,error:errMsg(dr.reason)},
+    dcx:   cr.status==='fulfilled'?{ok:true,orderId:cr.value?.id}:{ok:false,error:errMsg(cr.reason)}
   });
 });
 
-// ─────────────────────────────────────────────────────
-//  EXIT
-// ─────────────────────────────────────────────────────
+// ─── EXIT ────────────────────────────────────────────
 app.post('/api/exit', async (req, res) => {
   const { deltaProductId, dcxSymbol, longExchange, quantity } = req.body;
   const t0 = Date.now();
   const [dr, cr] = await Promise.allSettled([
     dAuth('POST','/v2/orders',{},{product_id:parseInt(deltaProductId),size:parseFloat(quantity),
       side:longExchange==='Delta'?'sell':'buy',order_type:'market_order',reduce_only:true}),
-    cAuth('/exchange/v1/orders/create',{market:dcxSymbol,
-      side:longExchange==='CoinDCX'?'sell':'buy',order_type:'market_order',quantity:parseFloat(quantity)})
+    cAuth('/exchange/v1/derivatives/futures/orders/create',{pair:dcxSymbol,
+      side:longExchange==='CoinDCX'?'sell':'buy',order_type:'market_order',total_quantity:parseFloat(quantity)})
   ]);
   res.json({
     success:true, latencyMs:Date.now()-t0,
-    delta:dr.status==='fulfilled'?{ok:true}:{ok:false,error:errMsg(dr.reason)},
-    dcx:cr.status==='fulfilled'?{ok:true}:{ok:false,error:errMsg(cr.reason)}
+    delta: dr.status==='fulfilled'?{ok:true}:{ok:false,error:errMsg(dr.reason)},
+    dcx:   cr.status==='fulfilled'?{ok:true}:{ok:false,error:errMsg(cr.reason)}
   });
 });
 
-// ─────────────────────────────────────────────────────
-//  POSITIONS / HISTORY / BALANCE
-// ─────────────────────────────────────────────────────
+// ─── POSITIONS / HISTORY / BALANCE ───────────────────
 app.post('/api/positions', async (_req, res) => {
   const [dr, cr] = await Promise.allSettled([
     dAuth('GET','/v2/positions',{page_size:'50'}),
-    cAuth('/exchange/v1/orders/active_orders')
+    cAuth('/exchange/v1/derivatives/futures/positions',{page:'1',size:'50'})
   ]);
   res.json({
-    delta:dr.status==='fulfilled'?dr.value:{error:errMsg(dr.reason)},
-    dcx:cr.status==='fulfilled'?cr.value:{error:errMsg(cr.reason)}
+    delta: dr.status==='fulfilled'?dr.value:{error:errMsg(dr.reason)},
+    dcx:   cr.status==='fulfilled'?cr.value:{error:errMsg(cr.reason)}
   });
 });
 
 app.post('/api/history', async (_req, res) => {
   const [dr, cr] = await Promise.allSettled([
     dAuth('GET','/v2/orders',{state:'closed',page_size:'50'}),
-    cAuth('/exchange/v1/orders/trade_history',{limit:50})
+    cAuth('/exchange/v1/derivatives/futures/orders',{page:'1',size:'50'})
   ]);
   res.json({
-    delta:dr.status==='fulfilled'?dr.value:{error:errMsg(dr.reason)},
-    dcx:cr.status==='fulfilled'?cr.value:{error:errMsg(cr.reason)}
+    delta: dr.status==='fulfilled'?dr.value:{error:errMsg(dr.reason)},
+    dcx:   cr.status==='fulfilled'?cr.value:{error:errMsg(cr.reason)}
   });
 });
 
@@ -566,5 +481,5 @@ app.post('/api/balance', async (_req, res) => {
 app.get('*', (_req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
 
 app.listen(PORT, '0.0.0.0', () =>
-  console.log(`FundArb v13 | Delta + CoinDCX | Port ${PORT}`)
+  console.log(`FundArb v14 | Delta + CoinDCX | Port ${PORT}`)
 );
