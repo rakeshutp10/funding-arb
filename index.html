@@ -384,7 +384,6 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
     <button onclick="runRawProbe()">🔬 Raw Endpoint Probe</button>
     <button onclick="runDbgDelta()">Delta Only</button>
     <button onclick="runDbgDcx()">CoinDCX Only</button>
-    <button onclick="runFieldDump()" style="background:var(--gdBg);color:var(--gd);border:1px solid var(--gdBd)">📋 Field Dump</button>
   </div>
   <div id="dbgBox" class="step-log"></div>
 </div>
@@ -745,33 +744,6 @@ async function runDbgDcx(){
     }
     if((r.sampleCoins||[]).length)h+=`\nParsed coins: <span class="sl-ok">${r.sampleCoins.join(', ')}</span>\n`;
     if((r.sample||[]).length){h+='\n<span class="sl-hd">Sample data:</span>\n';r.sample.forEach(s=>{const fr=parseFloat(s.fundingRate||0);h+=`  ${esc(s.base)} (${esc(s.symbol)}): $${fmt(s.price)} fund=${fr.toFixed(5)}%\n`;});}
-    dbgWrite(h);
-  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
-}
-
-async function runFieldDump(){
-  if(!S.url){toast('Set Backend URL first','err');return;}
-  dbgWrite('<span class="sl-hd">Dumping raw API field structure...</span>');
-  try{
-    const r=await fetch(S.url.replace(/\/$/,'')+'/debug/dcx-fields').then(x=>x.json());
-    let h='<span class="sl-hd">━━ ACTIVE_INSTRUMENTS RAW FIELDS ━━</span>\n';
-    const ai=r.active_instruments||{};
-    if(ai.error){h+=`<span class="sl-err">❌ ${esc(ai.error)}</span>\n`;}
-    else{
-      h+=`Total: <span class="sl-ok">${ai.total||0}</span> | Fields: <span class="sl-ok">${(ai.fields||[]).join(', ')}</span>\n\n`;
-      (ai.items||[]).forEach((item,i)=>{h+=`<span class="sl-hd">Item ${i+1}:</span>\n`;Object.entries(item).forEach(([k,v])=>{h+=`  <span class="sl-info">${esc(k)}</span>: <span class="sl-ok">${esc(String(v))}</span>\n`;});h+='\n';});
-    }
-    h+='\n<span class="sl-hd">━━ TICKER FIELDS ━━</span>\n';
-    const tk=r.ticker||{};
-    if(tk.error){h+=`<span class="sl-err">❌ ${esc(tk.error)}</span>\n`;}
-    else{
-      h+=`Total tickers: <span class="sl-ok">${tk.total||0}</span> | Futures (B-*): <span class="sl-ok">${tk.futuresCount||0}</span>\n`;
-      h+=`Fields: <span class="sl-ok">${(tk.fields||[]).join(', ')}</span>\n\n`;
-      if((tk.sampleFutures||[]).length){
-        h+='<span class="sl-hd">Sample futures tickers (B-*):</span>\n';
-        tk.sampleFutures.forEach(t=>{h+=`  <span class="sl-info">market=${esc(t.market)}</span> last_price=<span class="sl-ok">${esc(String(t.last_price||0))}</span> funding_rate=<span class="sl-ok">${esc(String(t.funding_rate||'(none)'))}</span>\n`;});
-      } else {h+='<span class="sl-err">⚠ No futures tickers found (no B-* markets)!</span>\n';}
-    }
     dbgWrite(h);
   }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
 }
