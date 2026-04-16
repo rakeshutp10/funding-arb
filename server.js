@@ -150,82 +150,93 @@ function pairToBase(pair) {
   return base && base.length >= 2 && base.length <= 15 ? base : '';
 }
 
-function parseDcxFuturesRow(row) {
-  const pair = (row?.mkt || row?.pair || row?.symbol || '').toUpperCase();
-  if (!pair.startsWith('B-')) return null;
-  const base = pairToBase(pair);
-  if (!base) return null;
-
-  const price = parseFloat(row?.mp || row?.ls || row?.last_price || row?.price || 0);
-  if (!Number.isFinite(price) || price <= 0) return null;
-
-  const fundingRatePct = normalizeFundingRatePct(row?.fr ?? row?.funding_rate ?? 0);
-
-  return {
-    base,
-    symbol:      pair,
-    price,
-    fundingRate: fundingRatePct,
-    volume24h:   parseFloat(row?.v  || row?.volume || 0),
-    change24h:   parseFloat(row?.pc || row?.change_24_hour || 0),
-    nextFunding: null
-  };
-}
-
 function normalizeFundingRatePct(raw) {
   const n = parseFloat(raw);
   if (!Number.isFinite(n)) return 0;
-  // Most venues send decimal (0.0001 = 0.01%), but keep already-percent values as-is.
+  // Venues send decimal (0.0001 = 0.01%); keep already-percent values as-is
   const pct = Math.abs(n) <= 1 ? n * 100 : n;
   return +pct.toFixed(6);
 }
 
-// ── fetchDCX: use documented futures market-data APIs with fallback ──
+// Very flexible row parser — tries every known field name permutation
+// Works for both public.coindcx.com and api.coindcx.com responses
+function parseDcxRow(row, knownPair = '') {
+  // Resolve pair string from any known field
+  let pair = (
+    row?.mkt || row?.pair || row?.symbol || row?.coindcx_name ||
+    row?.market || row?.name || knownPair || ''
+  ).toUpperCase();
+
+  // Normalise pair → must contain USDT or INR, strip B- prefix for base extraction
+  if (!pair) return null;
+  // Accept B-XXX_USDT, XXX_USDT, XXXUSDT-style
+  const isFutures = pair.startsWith('B-') || pair.includes('_USDT') || pair.includes('_INR') || pair.includes('PERP');
+  if (!isFutures) return null;
+
+  const base = pairToBase(pair.startsWith('B-') ? pair : 'B-' + pair);
+  if (!base) return null;
+
+  const price = parseFloat(
+    row?.mp || row?.mark_price || row?.ls || row?.last_price ||
+    row?.ltp || row?.close || row?.price || 0
+  );
+  if (!Number.isFinite(price) || price <= 0) return null;
+
+  const fr = normalizeFundingRatePct(
+    row?.fr ?? row?.funding_rate ?? row?.current_funding_rate ??
+    row?.predicted_funding_rate ?? row?.next_funding_rate ?? 0
+  );
+
+  return {
+    base,
+    symbol:      pair.startsWith('B-') ? pair : 'B-' + pair,
+    price,
+    fundingRate: fr,
+    volume24h:   parseFloat(row?.v || row?.volume || row?.volume_24h || row?.turnover || 0),
+    change24h:   parseFloat(row?.pc || row?.change_24_hour || row?.price_change_24h || 0),
+    nextFunding: row?.next_funding_time || row?.next_funding_at || null
+  };
+}
+
+// ── fetchDCX ─────────────────────────────────────────────────────────────────
 async function fetchDCX() {
   const result = { map: {}, ok: false, source: 'none', total: 0, errors: [], steps: [] };
   const log    = (m) => { result.steps.push(m); console.log('[DCX]', m); };
 
-  // STEP 1: preferred endpoint for futures rt prices + funding.
-  log('STEP 1 — futures realtime prices endpoint...');
+  // ══ STEP 1: public.coindcx.com realtime futures prices ═══════════════════
+  log('STEP 1 — public futures realtime endpoint...');
   try {
-    const rows = await withRetry(
+    const r = await withRetry(
       () => axios.get(`${DCX_PUBLIC_BASE}/market_data/v3/current_prices/futures/rt`, HTTP_DEFAULTS),
-      'GET current_prices/futures/rt',
-      { onRetry: log }
+      'public futures/rt', { onRetry: log }
     );
-    const payload = rows.data;
-    const list    = Array.isArray(payload) ? payload : [];
+    const list = Array.isArray(r.data) ? r.data
+               : (Array.isArray(r.data?.data) ? r.data.data : []);
+    log(`  Raw rows: ${list.length}${list[0] ? ' | Sample keys: ' + Object.keys(list[0]).join(', ') : ''}`);
 
     for (const row of list) {
-      const parsed = parseDcxFuturesRow(row);
+      const parsed = parseDcxRow(row);
       if (!parsed) continue;
       result.map[parsed.base] = {
-        symbol:      parsed.symbol,
-        price:       parsed.price,
-        fundingRate: parsed.fundingRate,
-        volume24h:   parsed.volume24h,
-        change24h:   parsed.change24h,
-        nextFunding: parsed.nextFunding
+        symbol: parsed.symbol, price: parsed.price,
+        fundingRate: parsed.fundingRate, volume24h: parsed.volume24h,
+        change24h: parsed.change24h, nextFunding: parsed.nextFunding
       };
     }
-
     if (Object.keys(result.map).length > 0) {
-      result.ok     = true;
-      result.source = 'public current_prices futures/rt';
-      result.total  = Object.keys(result.map).length;
-      log(`  ✅ ${result.total} futures rows normalized from public market data`);
+      result.ok = true; result.source = 'public futures/rt';
+      result.total = Object.keys(result.map).length;
+      log(`  ✅ ${result.total} coins from public futures/rt`);
       return result;
     }
-
-    log('  ⚠️ public market data returned no usable futures rows; switching to fallback flow');
+    log('  ⚠️ 0 usable rows — trying fallback');
   } catch (e) {
-    const m = `public futures market-data failed: ${errMsg(e)}`;
-    log(`  ❌ ${m}`);
-    result.errors.push(m);
+    const m = `public futures/rt failed: ${errMsg(e)}`;
+    log(`  ❌ ${m}`); result.errors.push(m);
   }
 
-  // STEP 2 fallback: active instruments + instrument details.
-  log('STEP 2 — active_instruments fallback...');
+  // ══ STEP 2: active_instruments → build pair list ══════════════════════════
+  log('STEP 2 — active_instruments (pair list)...');
   let pairList = [];
   for (const mode of ['USDT', 'INR']) {
     const url = `${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=${mode}`;
@@ -234,79 +245,106 @@ async function fetchDCX() {
       const raw = r.data;
       if (Array.isArray(raw)) {
         raw.forEach(item => {
-          const pairStr = typeof item === 'string' ? item : (item.pair || item.symbol || item.coindcx_name || '');
-          if (pairStr && pairStr.startsWith('B-')) pairList.push(pairStr.toUpperCase());
+          const ps = typeof item === 'string' ? item : (item.pair || item.symbol || item.coindcx_name || '');
+          if (ps && ps.toUpperCase().startsWith('B-')) pairList.push(ps.toUpperCase());
         });
-        log(`  [${mode}] ${raw.length} items fetched`);
+        log(`  [${mode}] ${raw.length} items → ${pairList.length} B-* pairs so far`);
       }
     } catch (e) {
       const m = `active_instruments[${mode}]: ${errMsg(e)}`;
       log(`  ❌ ${m}`); result.errors.push(m);
     }
   }
-  pairList      = Array.from(new Set(pairList));
-  result.total  = pairList.length;
-
-  // STEP 3 fallback: instrument (official endpoint) for each pair (sample + progressive fill).
-  log(`STEP 3 — instrument details fallback for ${pairList.length} pairs...`);
-  let hits = 0;
-  const pairsToFetch = pairList.slice(0, Math.max(1, DCX_MAX_PAIR_PROBES));
-  const chunks = [];
-  for (let i = 0; i < pairsToFetch.length; i += Math.max(1, DCX_PAIR_CONCURRENCY)) {
-    chunks.push(pairsToFetch.slice(i, i + Math.max(1, DCX_PAIR_CONCURRENCY)));
+  pairList     = Array.from(new Set(pairList));
+  result.total = pairList.length;
+  if (!pairList.length) {
+    result.errors.push('active_instruments returned 0 pairs — CoinDCX API unreachable from this server.');
+    return result;
   }
 
-  const url = `${DCX_BASE}/exchange/v1/derivatives/futures/data/instrument`;
-  for (const batch of chunks) {
-    const records = await Promise.all(batch.map(async (pair) => {
-      const base   = pairToBase(pair);
-      if (!base) return null;
-      const margin = pair.endsWith('_INR') ? 'INR' : 'USDT';
-      try {
-        const r = await withRetry(
-          () => axios.get(url, { ...HTTP_DEFAULTS, params: { pair, margin_currency_short_name: margin } }),
-          `instrument[${pair}]`,
-          { retries: 1, onRetry: log }
-        );
-        const instr = r.data?.instrument || r.data || {};
-        const price = parseFloat(instr?.mark_price || instr?.last_price || instr?.index_price || 0);
-        if (price <= 0) return null;
-        return {
-          base,
-          payload: {
-            symbol:      pair,
-            price,
-            fundingRate: normalizeFundingRatePct(instr?.funding_rate || instr?.current_funding_rate || 0),
-            volume24h:   parseFloat(instr?.volume || 0),
-            change24h:   parseFloat(instr?.price_change_24h || 0),
-            nextFunding: instr?.next_funding_time || null
-          }
-        };
-      } catch (e) {
-        return { error: `${pair}: ${errMsg(e).slice(0, 110)}` };
-      }
-    }));
-
-    for (const rec of records) {
-      if (!rec) continue;
-      if (rec.error) {
-        if (hits < 5) log(`  ${rec.error}`);
-        continue;
-      }
-      result.map[rec.base] = rec.payload;
-      hits++;
+  // ══ STEP 3: /exchange/ticker — spot prices (bulk, one call) ══════════════
+  // This endpoint reliably returns ALL spot tickers; we use it as a price proxy
+  log('STEP 3 — /exchange/ticker for spot price lookup...');
+  const tickerMap = {}; // "BTCUSDT" → ticker obj
+  try {
+    const arr = await withRetry(() => cGet('/exchange/ticker'), '/exchange/ticker', { onRetry: log });
+    if (Array.isArray(arr)) {
+      arr.forEach(t => {
+        const m = (t.market || '').toUpperCase();
+        if (m) tickerMap[m] = t;
+      });
+      log(`  ✅ ${Object.keys(tickerMap).length} spot tickers loaded`);
     }
+  } catch (e) {
+    const m = `/exchange/ticker failed: ${errMsg(e)}`;
+    log(`  ❌ ${m}`); result.errors.push(m);
   }
 
-  log(`  Fallback hits: ${hits}`);
+  // ══ STEP 4: Try per-pair /instrument for funding rates (first 20 only) ════
+  log('STEP 4 — per-pair funding rates (sample)...');
+  const fundingMap = {}; // base → fundingRate %
+  const samplePairs = pairList.filter(p => p.endsWith('_USDT')).slice(0, 20);
+  const instrUrl    = `${DCX_BASE}/exchange/v1/derivatives/futures/data/instrument`;
+  const instrChunks = [];
+  for (let i = 0; i < samplePairs.length; i += 5) instrChunks.push(samplePairs.slice(i, i + 5));
 
-  if (Object.keys(result.map).length > 0) {
+  for (const batch of instrChunks) {
+    const recs = await Promise.all(batch.map(async (pair) => {
+      try {
+        const r     = await axios.get(instrUrl, { ...HTTP_DEFAULTS, timeout: 8000, params: { pair, margin_currency_short_name: 'USDT' } });
+        const instr = r.data?.instrument || r.data || {};
+        const base  = pairToBase(pair);
+        const fr    = normalizeFundingRatePct(instr?.funding_rate || instr?.current_funding_rate || 0);
+        const price = parseFloat(instr?.mark_price || instr?.last_price || 0);
+        return { base, fr, price };
+      } catch (_) { return null; }
+    }));
+    recs.forEach(r => { if (r?.base) fundingMap[r.base] = { fr: r.fr, price: r.price }; });
+  }
+  log(`  Funding rates fetched for ${Object.keys(fundingMap).length} coins`);
+
+  // ══ STEP 5: Build result map ══════════════════════════════════════════════
+  log(`STEP 5 — building map from ${pairList.length} pairs...`);
+  let hits = 0, misses = 0;
+
+  for (const pair of pairList) {
+    if (!pair.endsWith('_USDT')) continue; // skip INR pairs to avoid duplicates
+    const base    = pairToBase(pair);
+    if (!base) { misses++; continue; }
+
+    // Price: prefer instrument data, fall back to spot ticker
+    const instrData = fundingMap[base];
+    let price = instrData?.price || 0;
+    if (price <= 0) {
+      const spotKey = base + 'USDT';
+      const ticker  = tickerMap[spotKey];
+      price = parseFloat(ticker?.last_price || 0);
+    }
+    if (price <= 0) { misses++; continue; }
+
+    const fr = instrData?.fr || 0;
+    const spotTicker = tickerMap[base + 'USDT'];
+
+    result.map[base] = {
+      symbol:      pair,
+      price,
+      fundingRate: fr,
+      volume24h:   parseFloat(spotTicker?.volume || 0),
+      change24h:   parseFloat(spotTicker?.change_24_hour || 0),
+      nextFunding: null
+    };
+    hits++;
+  }
+
+  log(`  Hits: ${hits} | Misses (no price): ${misses}`);
+
+  if (hits > 0) {
     result.ok     = true;
-    result.source = 'active_instruments + instrument (fallback)';
-    log(`  ✅ ${Object.keys(result.map).length} coins ready from fallback`);
+    result.source = 'active_instruments + ticker (spot proxy)';
+    log(`  ✅ ${hits} coins ready`);
   } else {
-    log('  ❌ CoinDCX market data unavailable after fallback retries.');
-    result.errors.push('No CoinDCX futures records were retrievable. Check API availability / IP restrictions / network egress rules.');
+    log('  ❌ 0 coins — CoinDCX data unavailable.');
+    result.errors.push('No CoinDCX data. Ticker keys sample: ' + Object.keys(tickerMap).slice(0, 5).join(', '));
   }
 
   return result;
