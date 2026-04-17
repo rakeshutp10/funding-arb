@@ -829,6 +829,8 @@ function showConfirm(msg){
     ovr.onclick=(e)=>{if(e.target===ovr)done(false);};
   });
 }
+
+async function runFieldDump(){
   if(!S.url){toast('Set Backend URL first','err');return;}
   dbgWrite('<span class="sl-hd">Loading CoinDCX field structure...</span>');
   try{
