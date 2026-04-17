@@ -80,7 +80,7 @@ function parseDelta(raw) {
       symbol:      t.symbol || '',
       productId:   t.id || t.product_id,
       price,
-      fundingRate: +(fr * 100).toFixed(6),
+      fundingRate: +fr.toFixed(6),   // Delta already returns % (e.g. -0.0716 = -0.0716%)
       volume24h:   parseFloat(t.volume || t.turnover_usd || 0),
       change24h:   parseFloat(t.price_change_percent || 0),
       nextFunding: t.next_funding_realization || null
@@ -256,28 +256,42 @@ async function fetchDCX() {
 // ─────────────────────────────────────────────────────
 //  STRATEGY
 // ─────────────────────────────────────────────────────
+//  STRATEGY LOGIC
+//  Both Negative: Long more-negative (you RECEIVE that funding), Short less-negative (hedge)
+//  Both Positive: Short more-positive (you RECEIVE), Long less-positive (hedge)
+//  Goldmine: Short positive (receive) + Long negative (receive) — collect from BOTH sides
+//  Net yield = |rate_difference| - 0.10% round-trip fee estimate
+// ─────────────────────────────────────────────────────
 function calcStrat(dR, cR) {
+  // For goldmine: net = |dR| + |cR| - fees  (since dR-cR already = |dR|+|cR| when signs differ)
   const diff = Math.abs(dR - cR);
   const net  = +(diff - 0.10).toFixed(6);
   let longEx, shortEx, scenario, scenarioType;
-  if (dR >= 0 && cR >= 0) {
-    scenarioType='positive'; scenario='Both Positive';
-    dR>=cR ? (shortEx='Delta',longEx='CoinDCX') : (shortEx='CoinDCX',longEx='Delta');
-  } else if (dR <= 0 && cR <= 0) {
-    scenarioType='negative'; scenario='Both Negative';
-    dR<cR ? (longEx='Delta',shortEx='CoinDCX') : (longEx='CoinDCX',shortEx='Delta');
+
+  if (dR <= 0 && cR <= 0) {
+    // Both negative — long the MORE negative one (receive funding), short the other (hedge)
+    scenarioType = 'negative'; scenario = 'Both -';
+    if (dR < cR) { longEx = 'Delta';   shortEx = 'CoinDCX'; }
+    else          { longEx = 'CoinDCX'; shortEx = 'Delta';   }
+  } else if (dR >= 0 && cR >= 0) {
+    // Both positive — short the MORE positive one (receive funding), long the other (hedge)
+    scenarioType = 'positive'; scenario = 'Both +';
+    if (dR > cR) { shortEx = 'Delta';   longEx = 'CoinDCX'; }
+    else          { shortEx = 'CoinDCX'; longEx = 'Delta';   }
   } else {
-    scenarioType='goldmine'; scenario='GOLDMINE';
-    dR>0 ? (shortEx='Delta',longEx='CoinDCX') : (shortEx='CoinDCX',longEx='Delta');
+    // Goldmine — one positive, one negative — collect from BOTH sides
+    scenarioType = 'goldmine'; scenario = 'GOLDMINE';
+    if (dR > 0) { shortEx = 'Delta';   longEx = 'CoinDCX'; }
+    else         { shortEx = 'CoinDCX'; longEx = 'Delta';   }
   }
-  return { longEx, shortEx, scenario, scenarioType, diff:+diff.toFixed(6), net };
+  return { longEx, shortEx, scenario, scenarioType, diff: +diff.toFixed(6), net };
 }
 
 // ─────────────────────────────────────────────────────
 //  HEALTH
 // ─────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({
-  status:'ok', version:'13.0.0', port:PORT,
+  status:'ok', version:'15.0.0', port:PORT,
   deltaKeySet:!!DELTA_KEY, dcxKeySet:!!DCX_KEY, ts:Date.now()
 }));
 
