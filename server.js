@@ -295,6 +295,16 @@ app.get('/health', (_req, res) => res.json({
   deltaKeySet:!!DELTA_KEY, dcxKeySet:!!DCX_KEY, ts:Date.now()
 }));
 
+// Expose Railway server's outbound IP — needed for Delta API key whitelist
+app.get('/api/railwayip', async (_req, res) => {
+  try {
+    const r = await axios.get('https://api.ipify.org?format=json', { timeout: 5000 });
+    res.json({ ip: r.data.ip, hint: `Add this IP to Delta Exchange API Key whitelist, OR set whitelist to 0.0.0.0 to allow all.` });
+  } catch(e) {
+    res.json({ ip: 'unknown', error: errMsg(e) });
+  }
+});
+
 // ─────────────────────────────────────────────────────
 //  DEBUG — Delta
 // ─────────────────────────────────────────────────────
@@ -420,49 +430,88 @@ app.all('/api/scan', async (_req, res) => {
 });
 
 // ─────────────────────────────────────────────────────
-//  ORDER
+//  ORDER  — Futures endpoints (correct DCX API)
 // ─────────────────────────────────────────────────────
 app.all('/api/order', async (req, res) => {
-  const { deltaProductId, dcxSymbol, longExchange, quantity, leverage, orderType, limitPriceDelta, limitPriceDcx } = req.body;
-  if (!DELTA_KEY||!DCX_KEY) return res.status(400).json({ success:false, error:'API keys not set in Railway Variables.' });
-  const dSide = longExchange==='Delta'?'buy':'sell';
-  const cSide = longExchange==='CoinDCX'?'buy':'sell';
-  const dBody = { product_id:parseInt(deltaProductId), size:parseFloat(quantity), side:dSide,
-    order_type:orderType==='limit'?'limit_order':'market_order',
-    ...(orderType==='limit'&&limitPriceDelta&&{limit_price:String(limitPriceDelta)}) };
-  if (leverage) dBody.leverage = String(leverage);
-  const cBody = { market:dcxSymbol, side:cSide, order_type:orderType==='limit'?'limit_order':'market_order',
-    quantity:parseFloat(quantity), ...(leverage&&{leverage:parseInt(leverage)}),
-    ...(orderType==='limit'&&limitPriceDcx&&{price:parseFloat(limitPriceDcx)}) };
+  const { deltaProductId, dcxSymbol, longExchange, quantity, leverage, orderType, limitPriceDelta, limitPriceDcx } = req.body || {};
+  if (!DELTA_KEY || !DCX_KEY) return res.status(400).json({ success:false, error:'API keys not set in Railway Variables.' });
+
+  const dSide = longExchange === 'Delta' ? 'buy' : 'sell';
+  const cSide = longExchange === 'CoinDCX' ? 'buy' : 'sell';
+
+  // Delta body
+  const dBody = {
+    product_id: parseInt(deltaProductId),
+    size:        parseFloat(quantity),
+    side:        dSide,
+    order_type:  orderType === 'limit' ? 'limit_order' : 'market_order',
+    ...(leverage && { leverage: String(leverage) }),
+    ...(orderType === 'limit' && limitPriceDelta && { limit_price: String(limitPriceDelta) })
+  };
+
+  // CoinDCX Futures order body — correct format per API docs
+  const dcxOrder = {
+    side:        cSide,
+    pair:        dcxSymbol,                   // e.g. "B-KSM_USDT"
+    order_type:  orderType === 'limit' ? 'limit_order' : 'market_order',
+    total_quantity: parseFloat(quantity),
+    leverage:    parseInt(leverage) || 5,
+    margin_currency_short_name: 'USDT',
+    notification: 'no_notification',
+    time_in_force: 'good_till_cancel',
+    ...(orderType === 'limit' && limitPriceDcx && { price: parseFloat(limitPriceDcx) })
+  };
+
   const t0 = Date.now();
   const [dr, cr] = await Promise.allSettled([
-    dAuth('POST','/v2/orders',{},dBody),
-    cAuth('/exchange/v1/orders/create',cBody)
+    dAuth('POST', '/v2/orders', {}, dBody),
+    cAuth('/exchange/v1/derivatives/futures/orders/create', { order: dcxOrder })
   ]);
   res.json({
-    success:true, latencyMs:Date.now()-t0,
-    bothOk:dr.status==='fulfilled'&&cr.status==='fulfilled',
-    delta:dr.status==='fulfilled'?{ok:true,orderId:dr.value?.result?.id||dr.value?.id}:{ok:false,error:errMsg(dr.reason)},
-    dcx:cr.status==='fulfilled'?{ok:true,orderId:cr.value?.orders?.[0]?.id||cr.value?.id}:{ok:false,error:errMsg(cr.reason)}
+    success:   true,
+    latencyMs: Date.now() - t0,
+    bothOk:    dr.status === 'fulfilled' && cr.status === 'fulfilled',
+    delta: dr.status === 'fulfilled'
+      ? { ok:true, orderId: dr.value?.result?.id || dr.value?.id }
+      : { ok:false, error: errMsg(dr.reason) },
+    dcx: cr.status === 'fulfilled'
+      ? { ok:true, orderId: cr.value?.data?.id || cr.value?.orders?.[0]?.id || cr.value?.id }
+      : { ok:false, error: errMsg(cr.reason) }
   });
 });
 
 // ─────────────────────────────────────────────────────
-//  EXIT
+//  EXIT — Close both positions at market
 // ─────────────────────────────────────────────────────
 app.all('/api/exit', async (req, res) => {
-  const { deltaProductId, dcxSymbol, longExchange, quantity } = req.body;
+  const { deltaProductId, dcxSymbol, longExchange, quantity } = req.body || {};
   const t0 = Date.now();
+
+  const dcxExitOrder = {
+    side:        longExchange === 'CoinDCX' ? 'sell' : 'buy',
+    pair:        dcxSymbol,
+    order_type:  'market_order',
+    total_quantity: parseFloat(quantity),
+    margin_currency_short_name: 'USDT',
+    notification: 'no_notification',
+    time_in_force: 'good_till_cancel'
+  };
+
   const [dr, cr] = await Promise.allSettled([
-    dAuth('POST','/v2/orders',{},{product_id:parseInt(deltaProductId),size:parseFloat(quantity),
-      side:longExchange==='Delta'?'sell':'buy',order_type:'market_order',reduce_only:true}),
-    cAuth('/exchange/v1/orders/create',{market:dcxSymbol,
-      side:longExchange==='CoinDCX'?'sell':'buy',order_type:'market_order',quantity:parseFloat(quantity)})
+    dAuth('POST', '/v2/orders', {}, {
+      product_id: parseInt(deltaProductId),
+      size:       parseFloat(quantity),
+      side:       longExchange === 'Delta' ? 'sell' : 'buy',
+      order_type: 'market_order',
+      reduce_only: true
+    }),
+    cAuth('/exchange/v1/derivatives/futures/orders/create', { order: dcxExitOrder })
   ]);
   res.json({
-    success:true, latencyMs:Date.now()-t0,
-    delta:dr.status==='fulfilled'?{ok:true}:{ok:false,error:errMsg(dr.reason)},
-    dcx:cr.status==='fulfilled'?{ok:true}:{ok:false,error:errMsg(cr.reason)}
+    success:   true,
+    latencyMs: Date.now() - t0,
+    delta: dr.status === 'fulfilled' ? { ok:true } : { ok:false, error: errMsg(dr.reason) },
+    dcx:   cr.status === 'fulfilled' ? { ok:true } : { ok:false, error: errMsg(cr.reason) }
   });
 });
 
@@ -471,43 +520,51 @@ app.all('/api/exit', async (req, res) => {
 // ─────────────────────────────────────────────────────
 app.all('/api/positions', async (_req, res) => {
   const [dr, cr] = await Promise.allSettled([
-    dAuth('GET','/v2/positions',{page_size:'50'}),
-    cAuth('/exchange/v1/orders/active_orders')
+    dAuth('GET', '/v2/positions', { page_size:'50' }),
+    cAuth('/exchange/v1/derivatives/futures/positions', { margin_currency_short_name: ['USDT'], page:'1', size:'50' })
   ]);
   res.json({
-    delta:dr.status==='fulfilled'?dr.value:{error:errMsg(dr.reason)},
-    dcx:cr.status==='fulfilled'?cr.value:{error:errMsg(cr.reason)}
+    delta: dr.status === 'fulfilled' ? dr.value : { error: errMsg(dr.reason) },
+    dcx:   cr.status === 'fulfilled' ? cr.value : { error: errMsg(cr.reason) }
   });
 });
 
 app.all('/api/history', async (_req, res) => {
   const [dr, cr] = await Promise.allSettled([
-    dAuth('GET','/v2/orders',{state:'closed',page_size:'50'}),
-    cAuth('/exchange/v1/orders/trade_history',{limit:50})
+    dAuth('GET', '/v2/orders', { state:'closed', page_size:'50' }),
+    cAuth('/exchange/v1/derivatives/futures/orders', {
+      status: 'filled,cancelled', margin_currency_short_name: ['USDT'], page:'1', size:'50'
+    })
   ]);
   res.json({
-    delta:dr.status==='fulfilled'?dr.value:{error:errMsg(dr.reason)},
-    dcx:cr.status==='fulfilled'?cr.value:{error:errMsg(cr.reason)}
+    delta: dr.status === 'fulfilled' ? dr.value : { error: errMsg(dr.reason) },
+    dcx:   cr.status === 'fulfilled' ? cr.value : { error: errMsg(cr.reason) }
   });
 });
 
 app.all('/api/balance', async (_req, res) => {
   const [dr, cr] = await Promise.allSettled([
-    dAuth('GET','/v2/wallet/balances'),
-    cAuth('/exchange/v1/users/balances')
+    dAuth('GET', '/v2/wallet/balances'),
+    cAuth('/exchange/v1/users/balances')   // spot+futures combined balance
   ]);
-  let deltaUsd=0, dcxUsd=0;
-  if (dr.status==='fulfilled') {
-    const bals=dr.value?.result||[];
-    const u=Array.isArray(bals)?bals.find(b=>b.asset_symbol==='USDT'):null;
-    deltaUsd=parseFloat(u?.balance||0);
+  let deltaUsd = 0, dcxUsd = 0;
+  if (dr.status === 'fulfilled') {
+    const bals = dr.value?.result || [];
+    const u = Array.isArray(bals) ? bals.find(b => b.asset_symbol === 'USDT') : null;
+    deltaUsd = parseFloat(u?.balance || 0);
   }
-  if (cr.status==='fulfilled') {
-    const arr=Array.isArray(cr.value)?cr.value:(cr.value?.balance||[]);
-    const u=arr.find?.(b=>(b.currency||b.short_name||'').toUpperCase()==='USDT');
-    dcxUsd=parseFloat(u?.balance||u?.available_balance||0);
+  if (cr.status === 'fulfilled') {
+    const arr = Array.isArray(cr.value) ? cr.value : (cr.value?.balance || []);
+    const u = arr.find?.(b => (b.currency || b.short_name || '').toUpperCase() === 'USDT');
+    dcxUsd = parseFloat(u?.balance || u?.available_balance || 0);
   }
-  res.json({ deltaUsd:+deltaUsd.toFixed(2), dcxUsd:+dcxUsd.toFixed(2), totalUsd:+(deltaUsd+dcxUsd).toFixed(2) });
+  res.json({
+    deltaUsd:  +deltaUsd.toFixed(2),
+    dcxUsd:    +dcxUsd.toFixed(2),
+    totalUsd:  +(deltaUsd + dcxUsd).toFixed(2),
+    deltaKeyOk: !!DELTA_KEY,
+    dcxKeyOk:   !!DCX_KEY
+  });
 });
 
 // ─────────────────────────────────────────────────────
