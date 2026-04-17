@@ -158,12 +158,13 @@ async function fetchDCX() {
         if (!sym.startsWith('B-') || !sym.endsWith('_USDT')) continue;
         const base = sym.slice(2, -5); // strip "B-" prefix and "_USDT" suffix
         if (!base || base.length < 2 || base.length > 12) continue;
-        const price = parseFloat(c.ls || c.mp || 0);  // ls = last price, mp = mark price
+        const price = parseFloat(c.ls || c.mp || 0);  // ls=last price, mp=mark price
         if (price <= 0) continue;
-        // fr = funding rate (already as decimal e.g. 0.0001 = 0.01%)
-        let fr = parseFloat(c.fr || c.efr || 0);
-        // Convert to percentage: 0.0001 → 0.01
-        fr = +(fr * 100).toFixed(6);
+        // CoinDCX docs: fr = current funding rate (decimal), efr = estimated funding rate
+        // e.g. fr: 5e-05 → 0.005%,  fr: -0.00011894 → -0.011894%
+        // Multiply × 100 to convert decimal → percentage
+        const frRaw = c.fr != null ? parseFloat(c.fr) : (c.efr != null ? parseFloat(c.efr) : 0);
+        const fr = +(frRaw * 100).toFixed(6);
         result.map[base] = {
           symbol:      sym,
           price,
@@ -334,13 +335,23 @@ app.get('/debug/delta', async (_req, res) => {
 app.get('/debug/dcx', async (_req, res) => {
   try {
     const r  = await fetchDCX();
-    const wf = Object.values(r.map).filter(v=>v.fundingRate!==0).length;
+    const allVals  = Object.values(r.map);
+    const withFR   = allVals.filter(v => v.fundingRate !== 0).length;
+    const posCount = allVals.filter(v => v.fundingRate > 0).length;
+    const negCount = allVals.filter(v => v.fundingRate < 0).length;
+    // Show 5 with non-zero funding for easy verification
+    const nonZeroSample = Object.entries(r.map)
+      .filter(([,v]) => v.fundingRate !== 0)
+      .slice(0,5)
+      .map(([b,v]) => ({ base:b, symbol:v.symbol, price:v.price, fundingRate:v.fundingRate }));
     res.json({
-      ok:r.ok, source:r.source, total:r.total,
-      parsed:Object.keys(r.map).length, withFunding:wf,
-      steps:r.steps, errors:r.errors,
-      sampleCoins:Object.keys(r.map).slice(0,12),
-      sample:Object.entries(r.map).slice(0,5).map(([b,v])=>({base:b,symbol:v.symbol,price:v.price,fundingRate:v.fundingRate}))
+      ok: r.ok, source: r.source, total: r.total,
+      parsed: Object.keys(r.map).length, withFunding: withFR,
+      positive: posCount, negative: negCount,
+      fundingNote: 'fr field from rt endpoint × 100 = % (e.g. 5e-05 × 100 = 0.005%)',
+      steps: r.steps, errors: r.errors,
+      sampleCoins: Object.keys(r.map).slice(0,12),
+      sample: nonZeroSample.length ? nonZeroSample : Object.entries(r.map).slice(0,5).map(([b,v])=>({base:b,symbol:v.symbol,price:v.price,fundingRate:v.fundingRate}))
     });
   } catch(e) {
     res.json({ ok:false, error:errMsg(e), steps:[], errors:[errMsg(e)] });
@@ -351,14 +362,15 @@ app.get('/debug/dcx', async (_req, res) => {
 //  DEBUG — Raw probe of every DCX endpoint
 // ─────────────────────────────────────────────────────
 app.get('/debug/dcx-raw', async (_req, res) => {
+  // NOTE: CoinDCX funding rates come embedded in the rt prices endpoint (fr/efr fields)
+  // There is NO standalone funding_rates endpoint — it returns 404
   const probes = [
-    { name:'rt_prices (public)',     url:`${DCX_PUBLIC}/market_data/v3/current_prices/futures/rt` },
-    { name:'active_instruments[USDT]', url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=USDT` },
-    { name:'active_instruments[INR]',  url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=INR` },
-    { name:'instrument_detail[BTC]', url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/instrument?pair=B-BTC_USDT&margin_currency_short_name=USDT` },
-    { name:'funding_rates',          url:`${DCX_BASE}/exchange/v1/derivatives/futures/funding_rates` },
-    { name:'trades[BTC]',            url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/trades?pair=B-BTC_USDT` },
-    { name:'orderbook[BTC]',         url:`${DCX_PUBLIC}/market_data/v3/orderbook/B-BTC_USDT-futures/10` },
+    { name:'rt_prices — main source',   url:`${DCX_PUBLIC}/market_data/v3/current_prices/futures/rt`,
+      note:'Funding: fr=current, efr=estimated (decimal × 100 = %)' },
+    { name:'active_instruments[USDT]',  url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/active_instruments?margin_currency_short_name[]=USDT` },
+    { name:'instrument_detail[BTC]',    url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/instrument?pair=B-BTC_USDT&margin_currency_short_name=USDT` },
+    { name:'trades[BTC]',               url:`${DCX_BASE}/exchange/v1/derivatives/futures/data/trades?pair=B-BTC_USDT` },
+    { name:'orderbook[BTC]',            url:`${DCX_PUBLIC}/market_data/v3/orderbook/B-BTC_USDT-futures/10` },
   ];
   const results = [];
   for (const p of probes) {
@@ -366,15 +378,31 @@ app.get('/debug/dcx-raw', async (_req, res) => {
       const start = Date.now();
       const r     = await axios.get(p.url, { timeout:12000, headers:{ Accept:'application/json' } });
       const data  = r.data;
-      const len   = Array.isArray(data) ? data.length
-                  : (data?.data?.length||data?.result?.length||data?.instruments?.length||'(object)');
-      const peek  = Array.isArray(data)&&data[0] ? Object.keys(data[0]).slice(0,8).join(', ') : 'n/a';
-      results.push({ name:p.name, ok:true, status:r.status, ms:Date.now()-start, items:len, fields:peek });
+      // For rt endpoint, extract funding rate sample
+      let frSample = '';
+      if (p.name.includes('rt_prices') && data?.prices) {
+        const keys = Object.keys(data.prices);
+        const sample = keys.slice(0, 2).map(k => {
+          const d = data.prices[k];
+          return `${k}: fr=${d.fr} efr=${d.efr} → ${+(parseFloat(d.fr||0)*100).toFixed(5)}%`;
+        });
+        frSample = sample.join(' | ');
+      }
+      const len  = p.name.includes('rt_prices') && data?.prices
+        ? Object.keys(data.prices).length
+        : Array.isArray(data) ? data.length
+        : (data?.data?.length||data?.result?.length||data?.instruments?.length||'(object)');
+      const peek = Array.isArray(data)&&data[0] ? Object.keys(data[0]).slice(0,8).join(', ') : (p.note||'n/a');
+      results.push({ name:p.name, ok:true, status:r.status, ms:Date.now()-start, items:len, fields:frSample||peek });
     } catch(e) {
       results.push({ name:p.name, ok:false, status:e.response?.status||'NO_RESPONSE', error:errMsg(e) });
     }
   }
-  res.json({ ts:Date.now(), probes:results });
+  res.json({
+    ts: Date.now(),
+    fundingNote: 'CoinDCX funding rates are in the rt_prices endpoint: fr=current funding (decimal), efr=estimated. Multiply × 100 for percentage.',
+    probes: results
+  });
 });
 
 // ─────────────────────────────────────────────────────
