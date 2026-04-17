@@ -356,7 +356,7 @@ app.get('/debug/dcx-raw', async (_req, res) => {
 // ─────────────────────────────────────────────────────
 //  SCAN
 // ─────────────────────────────────────────────────────
-app.post('/api/scan', async (_req, res) => {
+app.all('/api/scan', async (_req, res) => {
   try {
     const [dR, cR] = await Promise.allSettled([
       dPub('/v2/tickers', { contract_types:'perpetual_futures' }),
@@ -408,7 +408,7 @@ app.post('/api/scan', async (_req, res) => {
 // ─────────────────────────────────────────────────────
 //  ORDER
 // ─────────────────────────────────────────────────────
-app.post('/api/order', async (req, res) => {
+app.all('/api/order', async (req, res) => {
   const { deltaProductId, dcxSymbol, longExchange, quantity, leverage, orderType, limitPriceDelta, limitPriceDcx } = req.body;
   if (!DELTA_KEY||!DCX_KEY) return res.status(400).json({ success:false, error:'API keys not set in Railway Variables.' });
   const dSide = longExchange==='Delta'?'buy':'sell';
@@ -436,7 +436,7 @@ app.post('/api/order', async (req, res) => {
 // ─────────────────────────────────────────────────────
 //  EXIT
 // ─────────────────────────────────────────────────────
-app.post('/api/exit', async (req, res) => {
+app.all('/api/exit', async (req, res) => {
   const { deltaProductId, dcxSymbol, longExchange, quantity } = req.body;
   const t0 = Date.now();
   const [dr, cr] = await Promise.allSettled([
@@ -455,7 +455,7 @@ app.post('/api/exit', async (req, res) => {
 // ─────────────────────────────────────────────────────
 //  POSITIONS / HISTORY / BALANCE
 // ─────────────────────────────────────────────────────
-app.post('/api/positions', async (_req, res) => {
+app.all('/api/positions', async (_req, res) => {
   const [dr, cr] = await Promise.allSettled([
     dAuth('GET','/v2/positions',{page_size:'50'}),
     cAuth('/exchange/v1/orders/active_orders')
@@ -466,7 +466,7 @@ app.post('/api/positions', async (_req, res) => {
   });
 });
 
-app.post('/api/history', async (_req, res) => {
+app.all('/api/history', async (_req, res) => {
   const [dr, cr] = await Promise.allSettled([
     dAuth('GET','/v2/orders',{state:'closed',page_size:'50'}),
     cAuth('/exchange/v1/orders/trade_history',{limit:50})
@@ -477,7 +477,7 @@ app.post('/api/history', async (_req, res) => {
   });
 });
 
-app.post('/api/balance', async (_req, res) => {
+app.all('/api/balance', async (_req, res) => {
   const [dr, cr] = await Promise.allSettled([
     dAuth('GET','/v2/wallet/balances'),
     cAuth('/exchange/v1/users/balances')
@@ -496,8 +496,28 @@ app.post('/api/balance', async (_req, res) => {
   res.json({ deltaUsd:+deltaUsd.toFixed(2), dcxUsd:+dcxUsd.toFixed(2), totalUsd:+(deltaUsd+dcxUsd).toFixed(2) });
 });
 
-app.get('*', (_req, res) => res.sendFile(path.join(__dirname,'public','index.html')));
+// ─────────────────────────────────────────────────────
+//  DEBUG — Field dump: raw fields from CoinDCX rt endpoint
+// ─────────────────────────────────────────────────────
+app.get('/debug/fields', async (_req, res) => {
+  try {
+    const r = await axios.get(`${DCX_PUBLIC}/market_data/v3/current_prices/futures/rt`, {
+      timeout: 12000, headers: { Accept: 'application/json' }
+    });
+    const prices = r.data?.prices || r.data || {};
+    const keys   = Object.keys(prices);
+    const sample = keys.slice(0, 3).map(k => ({ sym: k, fields: Object.keys(prices[k]), data: prices[k] }));
+    const usdtKeys = keys.filter(k => k.startsWith('B-') && k.endsWith('_USDT'));
+    res.json({ ok: true, total: keys.length, usdtFutures: usdtKeys.length,
+      fieldNames: sample[0]?.fields || [], sample });
+  } catch(e) {
+    res.json({ ok: false, error: errMsg(e) });
+  }
+});
+
+// 404 fallback — JSON only (HTML is served from GitHub Pages, not here)
+app.use((_req, res) => res.status(404).json({ error: 'Not found', hint: 'This is the FundArb API server. Frontend is on GitHub Pages.' }));
 
 app.listen(PORT, '0.0.0.0', () =>
-  console.log(`FundArb v13 | Delta + CoinDCX | Port ${PORT}`)
+  console.log(`FundArb v15 | Delta + CoinDCX | Port ${PORT}`)
 );
