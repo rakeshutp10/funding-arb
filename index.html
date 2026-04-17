@@ -236,7 +236,16 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 
 .sec-title{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:14px}
 
-/* TOAST */
+/* CUSTOM CONFIRM DIALOG */
+.conf-ovr{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center}
+.conf-ovr.off{display:none}
+.conf-box{background:var(--s1);border:1px solid var(--b2);border-radius:12px;padding:24px 20px;max-width:320px;width:90%;text-align:center}
+.conf-ttl{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:8px}
+.conf-msg{font-size:12px;color:var(--t2);margin-bottom:20px;line-height:1.6}
+.conf-btns{display:flex;gap:10px}
+.conf-no{flex:1;padding:11px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);border-radius:var(--rad);font-weight:600}
+.conf-yes{flex:1;padding:11px;background:var(--r);color:#fff;border-radius:var(--rad);font-weight:700}
+
 .toasts{position:fixed;bottom:20px;right:14px;display:flex;flex-direction:column;gap:8px;z-index:999}
 .toast{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rad);padding:10px 14px;font-size:11px;max-width:280px;animation:tin .2s;color:var(--t1)}
 .toast.ok{border-left:3px solid var(--g)}.toast.err{border-left:3px solid var(--r)}.toast.warn{border-left:3px solid var(--gd)}
@@ -426,6 +435,18 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
   </div>
 </div>
 
+<!-- CUSTOM CONFIRM DIALOG -->
+<div class="conf-ovr off" id="confOvr">
+  <div class="conf-box">
+    <div class="conf-ttl" id="confTtl">Confirm</div>
+    <div class="conf-msg" id="confMsg"></div>
+    <div class="conf-btns">
+      <button class="conf-no" id="confNo">Cancel</button>
+      <button class="conf-yes" id="confYes">Confirm Exit</button>
+    </div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 
 <script>
@@ -575,9 +596,30 @@ function openM(o){
   document.getElementById('mLngPx').textContent='$'+fmt(o.longExchange==='Delta'?o.deltaPrice:o.dcxPrice)+' USD';
   document.getElementById('mShrtPx').textContent='$'+fmt(o.shortExchange==='Delta'?o.deltaPrice:o.dcxPrice)+' USD';
   let logic='';
-  if(o.scenarioType==='negative')logic=`<b>Both Negative Strategy:</b><br>Long ${o.longExchange} (${(o.longExchange==='Delta'?dF:cF).toFixed(4)}%) — RECEIVE this funding every 8h<br>Short ${o.shortExchange} (${(o.shortExchange==='Delta'?dF:cF).toFixed(4)}%) — pay this, hedges all price risk<br>Net: ${o.netYield.toFixed(4)}% per 8h — market direction irrelevant`;
-  else if(o.scenarioType==='positive')logic=`<b>Both Positive Strategy:</b><br>Short ${o.shortExchange} (${(o.shortExchange==='Delta'?dF:cF).toFixed(4)}%) — RECEIVE this funding every 8h<br>Long ${o.longExchange} (${(o.longExchange==='Delta'?dF:cF).toFixed(4)}%) — pay this, hedges price<br>Net: ${o.netYield.toFixed(4)}% per 8h`;
-  else{const pR=dF>0?dF:cF,nR=dF<0?dF:cF;logic=`<b>GOLDMINE — Collect from BOTH sides:</b><br>Short ${o.shortExchange} (+${pR.toFixed(4)}%): they PAY you to be short<br>Long ${o.longExchange} (${nR.toFixed(4)}%): they PAY you to be long<br>Total: ${Math.abs(pR).toFixed(4)}% + ${Math.abs(nR).toFixed(4)}% = ${o.fundingDiff.toFixed(4)}% gross`;}
+  const dLabel=`Delta (${dF>0?'+':''}${dF.toFixed(4)}%)`,cLabel=`CoinDCX (${cF>0?'+':''}${cF.toFixed(4)}%)`;
+  if(o.scenarioType==='negative'){
+    const longRate=(o.longExchange==='Delta'?dF:cF), shortRate=(o.shortExchange==='Delta'?dF:cF);
+    logic=`<b>Both Negative Strategy:</b><br>
+      🟢 Long <b>${o.longExchange}</b> (${longRate.toFixed(4)}%) — more negative → you <b>RECEIVE</b> this funding every 8h<br>
+      🔴 Short <b>${o.shortExchange}</b> (${shortRate.toFixed(4)}%) — hedge, locks in price risk<br>
+      Market goes up or down: <b>doesn't matter</b> — positions cancel out<br>
+      Net per 8h: <b style="color:var(--g)">${o.netYield.toFixed(4)}%</b> (after fees)`;
+  } else if(o.scenarioType==='positive'){
+    const longRate=(o.longExchange==='Delta'?dF:cF), shortRate=(o.shortExchange==='Delta'?dF:cF);
+    logic=`<b>Both Positive Strategy:</b><br>
+      🔴 Short <b>${o.shortExchange}</b> (${shortRate.toFixed(4)}%) — more positive → you <b>RECEIVE</b> this funding every 8h<br>
+      🟢 Long <b>${o.longExchange}</b> (${longRate.toFixed(4)}%) — hedge, locks in price risk<br>
+      Market goes up or down: <b>doesn't matter</b><br>
+      Net per 8h: <b style="color:var(--g)">${o.netYield.toFixed(4)}%</b> (after fees)`;
+  } else {
+    const posEx=dF>0?'Delta':'CoinDCX', negEx=dF<0?'Delta':'CoinDCX';
+    const posRate=Math.max(dF,cF), negRate=Math.min(dF,cF);
+    logic=`<b>🏆 GOLDMINE — Collect funding from BOTH sides:</b><br>
+      🔴 Short <b>${posEx}</b> (+${posRate.toFixed(4)}%) — they PAY you to be short<br>
+      🟢 Long <b>${negEx}</b> (${negRate.toFixed(4)}%) — they PAY you to be long<br>
+      Both sides earn → <b>double collection</b>, market direction irrelevant<br>
+      Gross: ${Math.abs(posRate).toFixed(4)}% + ${Math.abs(negRate).toFixed(4)}% = <b style="color:var(--gd)">${o.fundingDiff.toFixed(4)}%</b> | Net: <b style="color:var(--g)">${o.netYield.toFixed(4)}%</b>`;
+  }
   document.getElementById('mLogic').innerHTML=logic;
   document.getElementById('oRes').classList.remove('on');calcN();
 }
@@ -596,7 +638,10 @@ async function execOrd(){
   finally{btn.disabled=false;btn.textContent='Execute Both Orders Simultaneously';}
 }
 async function execExit(){
-  const o=S.sel;if(!o)return;if(!confirm('Exit both for '+o.base+'?'))return;
+  const o=S.sel;if(!o)return;
+  // Custom confirm instead of native confirm()
+  const confirmed = await showConfirm('Exit both positions for '+o.base+'?');
+  if(!confirmed)return;
   const btn=document.querySelector('.bexit');btn.disabled=true;btn.textContent='Exiting...';
   try{const res=await api('/api/exit',{deltaProductId:o.deltaProductId,dcxSymbol:o.dcxSymbol,longExchange:o.longExchange,quantity:document.getElementById('oQty').value});showRes(res);toast('Exit orders sent','ok');}
   catch(e){toast('Exit error: '+e.message,'err');}
@@ -606,14 +651,19 @@ async function execExit(){
 function showRes(res){
   const el=document.getElementById('oRes');el.classList.add('on');
   const ok=res.delta?.ok&&res.dcx?.ok;el.className='ores on '+(ok?'rok':'rerr');
-  const dE=JSON.stringify(res.delta?.error||''),cE=JSON.stringify(res.dcx?.error||'');
-  const ipE=dE.includes('ip_not_whitelisted'),mgnE=dE.includes('insufficient_margin');
+  const dErr=res.delta?.error||'';const cErr=res.dcx?.error||'';
+  const ipMatch=dErr.match(/client_ip['":\s]+([0-9.]+)/);
+  const railwayIP=ipMatch?ipMatch[1]:'?';
+  const ipE=dErr.includes('ip_not_whitelisted');
+  const mgnE=dErr.includes('insufficient_margin');
+  const credE=cErr.includes('Invalid credentials')||cErr.includes('401');
   let hints='';
-  if(ipE)hints+='<div class="ehint">Delta IP Error: Go to Delta dashboard → API Keys → set IP whitelist to 0.0.0.0 → save.</div>';
-  if(mgnE)hints+='<div class="ehint">Insufficient margin on Delta — add USDT to your account.</div>';
+  if(ipE)hints+=`<div class="ehint">⚠ Delta IP Error — Railway server IP: <b style="color:var(--t1);font-family:var(--m)">${railwayIP}</b><br>Fix: Delta dashboard → API Keys → IP Whitelist → add <b>${railwayIP}</b> OR set to <b>0.0.0.0</b> (allow all)</div>`;
+  if(mgnE)hints+='<div class="ehint">⚠ Insufficient margin on Delta — add USDT to your Delta account.</div>';
+  if(credE)hints+='<div class="ehint">⚠ CoinDCX credentials invalid — check DCX_KEY and DCX_SECRET in Railway Variables are correct and have Futures trading permission.</div>';
   el.innerHTML=(res.latencyMs?`<div style="font-size:9px;color:var(--t3);margin-bottom:6px">Latency: ${res.latencyMs}ms</div>`:'')+
-    `<div class="rsec"><div class="rlbl">Delta Exchange</div><b style="color:${res.delta?.ok?'var(--g)':'var(--r)'}">${res.delta?.ok?'ORDER PLACED':'FAILED'}</b>${res.delta?.orderId?'<br><small style="color:var(--t3)">ID: '+res.delta.orderId+'</small>':''}${!res.delta?.ok?'<br><small style="color:var(--t3)">'+dE+'</small>':''}</div>
-    <div class="rsec"><div class="rlbl">CoinDCX</div><b style="color:${res.dcx?.ok?'var(--g)':'var(--r)'}">${res.dcx?.ok?'ORDER PLACED':'FAILED'}</b>${res.dcx?.orderId?'<br><small style="color:var(--t3)">ID: '+res.dcx.orderId+'</small>':''}${!res.dcx?.ok?'<br><small style="color:var(--t3)">'+cE+'</small>':''}</div>`+hints;
+    `<div class="rsec"><div class="rlbl">Delta Exchange India</div><b style="color:${res.delta?.ok?'var(--g)':'var(--r)'}">${res.delta?.ok?'✅ ORDER PLACED':'❌ FAILED'}</b>${res.delta?.orderId?'<br><small style="color:var(--t3)">Order ID: '+res.delta.orderId+'</small>':''}${!res.delta?.ok?'<br><small style="color:var(--t3)">'+esc(dErr.slice(0,200))+'</small>':''}</div>
+    <div class="rsec"><div class="rlbl">CoinDCX</div><b style="color:${res.dcx?.ok?'var(--g)':'var(--r)'}">${res.dcx?.ok?'✅ ORDER PLACED':'❌ FAILED'}</b>${res.dcx?.orderId?'<br><small style="color:var(--t3)">Order ID: '+res.dcx.orderId+'</small>':''}${!res.dcx?.ok?'<br><small style="color:var(--t3)">'+esc(cErr.slice(0,200))+'</small>':''}</div>`+hints;
 }
 
 async function loadPos(){
@@ -765,7 +815,20 @@ function pad(n){return String(n).padStart(2,'0')}
 function fmt(v){const n=parseFloat(v);if(isNaN(n)||n===0)return '--';return n>=10000?n.toLocaleString('en-US',{maximumFractionDigits:0}):n>=100?n.toFixed(2):n>=1?n.toFixed(4):n.toFixed(6);}
 function fmtV(v){if(!v)return '--';return v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(2)+'M':v>=1e3?(v/1e3).toFixed(2)+'K':v.toFixed(2);}
 
-async function runFieldDump(){
+// Custom confirm dialog — returns Promise<boolean>
+function showConfirm(msg){
+  return new Promise(resolve=>{
+    const ovr=document.getElementById('confOvr');
+    document.getElementById('confMsg').textContent=msg;
+    ovr.classList.remove('off');
+    const yes=document.getElementById('confYes');
+    const no=document.getElementById('confNo');
+    function done(v){ovr.classList.add('off');yes.onclick=null;no.onclick=null;resolve(v);}
+    yes.onclick=()=>done(true);
+    no.onclick=()=>done(false);
+    ovr.onclick=(e)=>{if(e.target===ovr)done(false);};
+  });
+}
   if(!S.url){toast('Set Backend URL first','err');return;}
   dbgWrite('<span class="sl-hd">Loading CoinDCX field structure...</span>');
   try{
