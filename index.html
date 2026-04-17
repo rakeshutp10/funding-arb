@@ -384,6 +384,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
     <button onclick="runRawProbe()">🔬 Raw Endpoint Probe</button>
     <button onclick="runDbgDelta()">Delta Only</button>
     <button onclick="runDbgDcx()">CoinDCX Only</button>
+    <button onclick="runFieldDump()" style="background:var(--gdBg);border-color:var(--gdBd);color:var(--gd)">📋 Field Dump</button>
   </div>
   <div id="dbgBox" class="step-log"></div>
 </div>
@@ -433,9 +434,18 @@ const S={url:'',opps:[],sel:null,ot:'market',advOpen:true,theme:localStorage.get
 window.addEventListener('DOMContentLoaded',()=>{
   applyTh(S.theme);
   const v=localStorage.getItem('fa13_url');
-  if(v){S.url=v;const el=document.getElementById('backendUrl');if(el)el.value=v;document.getElementById('cst').textContent='Saved: '+v;}
+  if(v){S.url=v;const el=document.getElementById('backendUrl');if(el)el.value=v;document.getElementById('cst').textContent='Saved: '+v;pingBackend();}
   startClk();
 });
+
+async function pingBackend(){
+  try{
+    const d=await(await fetch(S.url.replace(/\/$/,'')+'/health')).json();
+    if(d.status==='ok'){
+      document.getElementById('backSt').textContent='Backend: connected';document.getElementById('backSt').style.color='var(--g)';
+    }
+  }catch(_){document.getElementById('backSt').textContent='Backend: offline';document.getElementById('backSt').style.color='var(--r)';}
+}
 
 function applyTh(t){S.theme=t;document.documentElement.setAttribute('data-t',t);document.getElementById('thmBtn').innerHTML=t==='d'?'&#9788;':'&#9790;';localStorage.setItem('fa13_t',t);}
 document.getElementById('thmBtn').onclick=()=>applyTh(S.theme==='d'?'l':'d');
@@ -467,7 +477,7 @@ async function doScan(){
   if(!S.url){toast('Set Backend URL','err');document.getElementById('sett').classList.add('on');return;}
   const btn=document.getElementById('scanBtn');btn.disabled=true;btn.textContent='Scanning...';
   try{
-    const d=await api('/api/scan');S.opps=d.data||[];
+    const d=await api('/api/scan',{});S.opps=d.data||[];
     setDot('d',d.deltaOk,d.deltaCount);setDot('c',d.dcxOk,d.dcxCount);
     document.getElementById('lastUp').textContent=new Date().toLocaleTimeString();
     document.getElementById('chips').style.display='flex';
@@ -608,7 +618,7 @@ function showRes(res){
 
 async function loadPos(){
   try{
-    const res=await api('/api/positions');
+    const res=await api('/api/positions',{});
     [['dPos',res.delta,true],['cPos',res.dcx,false]].forEach(([id,data,isDelta])=>{
       const el=document.getElementById(id);
       const items=isDelta?(data?.result||data?.data||[]):(data?.data||data?.orders||[]);
@@ -620,7 +630,7 @@ async function loadPos(){
 
 async function loadHist(){
   try{
-    const res=await api('/api/history');
+    const res=await api('/api/history',{});
     const rH=(tbId,items)=>{const tb=document.getElementById(tbId);if(!Array.isArray(items)||!items.length){tb.innerHTML='<tr><td colspan="7" style="padding:14px;color:var(--t3);text-align:center">No history</td></tr>';return;}tb.innerHTML=items.slice(0,50).map(o=>{const sym=o.product_symbol||o.symbol||'--';const side=(o.side||o.orderSide||'').toUpperCase();const px=fmt(o.average_fill_price||o.price||0);const ts=o.created_at||o.timestamp?new Date(o.created_at||o.timestamp).toLocaleString():'--';return `<tr><td>${sym}</td><td class="${side.includes('BUY')?'sbb':'sbs'}">${side}</td><td style="color:var(--t3)">${o.order_type||o.type||'--'}</td><td>${o.size||o.quantity||'--'}</td><td>$${px}</td><td style="color:var(--t3)">${o.state||o.status||'--'}</td><td style="color:var(--t3);font-size:10px">${ts}</td></tr>`;}).join('');};
     rH('dHist',res.delta?.result||[]);rH('cHist',res.dcx?.trades||res.dcx?.data||res.dcx?.orders||[]);
   }catch(e){toast('Error: '+e.message,'err');}
@@ -628,7 +638,7 @@ async function loadHist(){
 
 async function loadBal(){
   try{
-    const r=await api('/api/balance');
+    const r=await api('/api/balance',{});
     document.getElementById('bD').textContent='$'+(parseFloat(r.deltaUsd||0)).toFixed(2)+' USD';
     document.getElementById('bC').textContent='$'+(parseFloat(r.dcxUsd||0)).toFixed(2)+' USD';
     document.getElementById('bT').textContent='$'+(parseFloat(r.totalUsd||0)).toFixed(2)+' USD';
@@ -754,6 +764,25 @@ function toast(msg,type='ok'){const w=document.getElementById('toasts');const t=
 function pad(n){return String(n).padStart(2,'0')}
 function fmt(v){const n=parseFloat(v);if(isNaN(n)||n===0)return '--';return n>=10000?n.toLocaleString('en-US',{maximumFractionDigits:0}):n>=100?n.toFixed(2):n>=1?n.toFixed(4):n.toFixed(6);}
 function fmtV(v){if(!v)return '--';return v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(2)+'M':v>=1e3?(v/1e3).toFixed(2)+'K':v.toFixed(2);}
+
+async function runFieldDump(){
+  if(!S.url){toast('Set Backend URL first','err');return;}
+  dbgWrite('<span class="sl-hd">Loading CoinDCX field structure...</span>');
+  try{
+    const base=S.url.replace(/\/$/,'');
+    const r=await fetch(base+'/debug/fields').then(x=>x.json());
+    let h='<span class="sl-hd">━━ COINDCX FIELD DUMP (public rt endpoint) ━━</span>\n\n';
+    if(!r.ok){h+=`<span class="sl-err">❌ FAILED: ${esc(r.error||'')}</span>`;dbgWrite(h);return;}
+    h+=`Total keys: <span class="sl-ok">${r.total}</span>  |  USDT futures: <span class="sl-ok">${r.usdtFutures}</span>\n`;
+    h+=`Fields available: <span class="sl-ok">${(r.fieldNames||[]).join(', ')}</span>\n\n`;
+    (r.sample||[]).forEach(s=>{
+      h+=`<span class="sl-hd">── ${esc(s.sym)} ──</span>\n`;
+      Object.entries(s.data||{}).forEach(([k,v])=>{ h+=`  <span class="sl-info">${esc(k)}</span>: <span class="sl-ok">${esc(String(v))}</span>\n`; });
+      h+='\n';
+    });
+    dbgWrite(h);
+  }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
+}
 </script>
 </body>
 </html>
