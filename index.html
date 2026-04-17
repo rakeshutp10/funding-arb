@@ -749,7 +749,8 @@ async function runDbgFull(){
     if(cr.ok){
       h+=`<span class="sl-ok">✅ Connected — ${cr.total||0} instruments, ${cr.parsed||0} parsed</span>\n`;
       h+=`Source: <span class="sl-ok">${esc(cr.source||'?')}</span>\n`;
-      h+=`With funding rate: <span class="${(cr.withFunding||0)>0?'sl-ok':'sl-err'}">${cr.withFunding||0} coins</span>\n`;
+      h+=`With funding rate: <span class="${(cr.withFunding||0)>0?'sl-ok':'sl-err'}">${cr.withFunding||0} coins</span> (<span class="sl-ok">+${cr.positive||0}</span> / <span class="sl-err">${cr.negative||0}</span>)\n`;
+      if(cr.fundingNote)h+=`<span class="sl-info">📌 ${esc(cr.fundingNote)}</span>\n`;
     } else {
       h+=`<span class="sl-err">❌ FAILED — 0 coins parsed</span>\n`;
     }
@@ -812,7 +813,9 @@ async function runDbgDcx(){
     let h='<span class="sl-hd">━━ COINDCX DETAILED DEBUG ━━</span>\n';
     h+=`Status: <span class="${r.ok?'sl-ok':'sl-err'}">${r.ok?'✅ OK':'❌ FAILED'}</span>\n`;
     h+=`Source: ${esc(r.source||'none')}\n`;
-    h+=`Total instruments: ${r.total||0} | Parsed coins: ${r.parsed||0} | With funding: ${r.withFunding||0}\n\n`;
+    h+=`Total instruments: ${r.total||0} | Parsed: ${r.parsed||0} | With funding: <span class="${(r.withFunding||0)>0?'sl-ok':'sl-err'}">${r.withFunding||0}</span> (<span class="sl-ok">+${r.positive||0}</span> / <span class="sl-err">${r.negative||0}</span>)\n`;
+    if(r.fundingNote)h+=`<span class="sl-info">📌 ${esc(r.fundingNote)}</span>\n`;
+    h+='\n';
     h+='<span class="sl-hd">Step-by-step log:</span>\n';
     (r.steps||[]).forEach(s=>{ h+=fmtStep(s)+'\n'; });
     if((r.errors||[]).length){
