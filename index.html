@@ -291,6 +291,10 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
       </div>
       <button class="pbtn" onclick="testConn()">Test Connection &amp; Save</button>
       <div class="cst" id="cst"></div>
+      <div style="display:none;margin-top:10px;background:var(--gdBg);border:1px solid var(--gdBd);border-radius:6px;padding:10px;font-size:10px;line-height:1.8" id="ipBox">
+        🌐 Railway Server IP: <b style="color:var(--t1);font-family:var(--m);font-size:12px" id="railwayIP">--</b><br>
+        <span style="color:var(--t2)">Delta Exchange → API Keys → IP Whitelist → add this IP (or set <b>0.0.0.0</b> to allow all)</span>
+      </div>
     </div>
     <div class="sb">
       <div class="sb-t">Delta Exchange India — API Keys</div>
@@ -490,6 +494,12 @@ async function testConn(){
       st.style.color=keyOk?'var(--g)':'var(--gd)';
       document.getElementById('backSt').textContent='Backend: connected';document.getElementById('backSt').style.color='var(--g)';
       toast('Backend connected'+(keyOk?'':' — set Railway Variables!'),keyOk?'ok':'warn');
+      // Fetch and show Railway IP for Delta whitelist
+      fetch(S.url.replace(/\/$/,'')+'/api/railwayip').then(r=>r.json()).then(d=>{
+        S.railwayIP=d.ip||'?';
+        const ipEl=document.getElementById('railwayIP');
+        if(ipEl){ipEl.textContent=d.ip||'?';document.getElementById('ipBox').style.display='block';}
+      }).catch(_=>{});
     }
   }catch(e){st.textContent='Failed: '+e.message;st.style.color='var(--r)';toast('Backend unreachable','err');}
 }
@@ -652,18 +662,25 @@ function showRes(res){
   const el=document.getElementById('oRes');el.classList.add('on');
   const ok=res.delta?.ok&&res.dcx?.ok;el.className='ores on '+(ok?'rok':'rerr');
   const dErr=res.delta?.error||'';const cErr=res.dcx?.error||'';
-  const ipMatch=dErr.match(/client_ip['":\s]+([0-9.]+)/);
-  const railwayIP=ipMatch?ipMatch[1]:'?';
-  const ipE=dErr.includes('ip_not_whitelisted');
+  const ip=S.railwayIP||'(open Settings → Test Connection to get IP)';
+  const ipE=dErr.includes('ip_not_whitelisted')||dErr.includes('ip_not_allowed');
   const mgnE=dErr.includes('insufficient_margin');
   const credE=cErr.includes('Invalid credentials')||cErr.includes('401');
+  const dcxFutE=cErr.includes('not_found')||cErr.includes('invalid_pair');
   let hints='';
-  if(ipE)hints+=`<div class="ehint">⚠ Delta IP Error — Railway server IP: <b style="color:var(--t1);font-family:var(--m)">${railwayIP}</b><br>Fix: Delta dashboard → API Keys → IP Whitelist → add <b>${railwayIP}</b> OR set to <b>0.0.0.0</b> (allow all)</div>`;
-  if(mgnE)hints+='<div class="ehint">⚠ Insufficient margin on Delta — add USDT to your Delta account.</div>';
-  if(credE)hints+='<div class="ehint">⚠ CoinDCX credentials invalid — check DCX_KEY and DCX_SECRET in Railway Variables are correct and have Futures trading permission.</div>';
-  el.innerHTML=(res.latencyMs?`<div style="font-size:9px;color:var(--t3);margin-bottom:6px">Latency: ${res.latencyMs}ms</div>`:'')+
-    `<div class="rsec"><div class="rlbl">Delta Exchange India</div><b style="color:${res.delta?.ok?'var(--g)':'var(--r)'}">${res.delta?.ok?'✅ ORDER PLACED':'❌ FAILED'}</b>${res.delta?.orderId?'<br><small style="color:var(--t3)">Order ID: '+res.delta.orderId+'</small>':''}${!res.delta?.ok?'<br><small style="color:var(--t3)">'+esc(dErr.slice(0,200))+'</small>':''}</div>
-    <div class="rsec"><div class="rlbl">CoinDCX</div><b style="color:${res.dcx?.ok?'var(--g)':'var(--r)'}">${res.dcx?.ok?'✅ ORDER PLACED':'❌ FAILED'}</b>${res.dcx?.orderId?'<br><small style="color:var(--t3)">Order ID: '+res.dcx.orderId+'</small>':''}${!res.dcx?.ok?'<br><small style="color:var(--t3)">'+esc(cErr.slice(0,200))+'</small>':''}</div>`+hints;
+  if(ipE)hints+=`<div class="ehint">⚠ <b>Delta IP not whitelisted</b><br>Railway IP: <b style="font-family:var(--m);color:var(--t1)">${ip}</b><br>Go to: Delta Exchange → API Keys → IP Whitelist → add <b>${ip}</b><br>OR set whitelist to <b>0.0.0.0</b> to allow all IPs → Save</div>`;
+  if(mgnE){const req=dErr.match(/required_additional_balance['":\s]+([\d.]+)/)?.[1];hints+=`<div class="ehint">⚠ <b>Insufficient margin on Delta</b> — Need extra: <b>~$${req||'?'} USDT</b><br>Reduce quantity/leverage, or add USDT to your Delta account.</div>`;}
+  if(credE)hints+=`<div class="ehint">⚠ <b>CoinDCX "Invalid credentials"</b><br>Check Railway Variables → DCX_KEY and DCX_SECRET are correct.<br>In CoinDCX → API Keys → make sure <b>Futures trading</b> permission is enabled.</div>`;
+  if(dcxFutE)hints+=`<div class="ehint">⚠ CoinDCX pair not found for futures — this coin may not support futures on CoinDCX.</div>`;
+  el.innerHTML=(res.latencyMs?`<div style="font-size:9px;color:var(--t3);margin-bottom:8px">Latency: ${res.latencyMs}ms</div>`:'')+
+    `<div class="rsec"><div class="rlbl">Delta Exchange India</div>
+     <b style="color:${res.delta?.ok?'var(--g)':'var(--r)'}">${res.delta?.ok?'✅ ORDER PLACED':'❌ FAILED'}</b>
+     ${res.delta?.orderId?'<br><small style="color:var(--t3)">Order ID: '+esc(String(res.delta.orderId))+'</small>':''}
+     ${!res.delta?.ok?'<br><small style="color:var(--t3);word-break:break-all">'+esc(dErr.slice(0,300))+'</small>':''}</div>
+    <div class="rsec"><div class="rlbl">CoinDCX Futures</div>
+     <b style="color:${res.dcx?.ok?'var(--g)':'var(--r)'}">${res.dcx?.ok?'✅ ORDER PLACED':'❌ FAILED'}</b>
+     ${res.dcx?.orderId?'<br><small style="color:var(--t3)">Order ID: '+esc(String(res.dcx.orderId))+'</small>':''}
+     ${!res.dcx?.ok?'<br><small style="color:var(--t3);word-break:break-all">'+esc(cErr.slice(0,300))+'</small>':''}</div>`+hints;
 }
 
 async function loadPos(){
