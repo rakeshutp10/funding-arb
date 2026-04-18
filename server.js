@@ -76,14 +76,37 @@ function parseDelta(raw) {
     const price = parseFloat(t.mark_price || t.last_price || t.close || 0);
     if (price <= 0) continue;
     const fr = parseFloat(t.funding_rate || t.funding_rate_8h || 0);
+
+    // Detect funding interval from next_funding_realization timestamp
+    // Check which standard boundary (1H/4H/8H) the timestamp aligns to
+    let fundingInterval = 8; // default
+    let nextFundingTs   = null;
+    if (t.next_funding_realization) {
+      const ts = new Date(t.next_funding_realization).getTime();
+      nextFundingTs = ts;
+      const tsSec = Math.floor(ts / 1000);
+      // If timestamp aligns to 1-hour boundary exactly → 1H cycle
+      if (tsSec % 3600 === 0) {
+        if (tsSec % 28800 === 0)      fundingInterval = 8;  // 8H boundary (also 1H/4H aligned)
+        else if (tsSec % 14400 === 0) fundingInterval = 4;  // 4H boundary
+        else                          fundingInterval = 1;  // pure 1H
+      }
+      // Use time-until as secondary signal
+      const secUntil = (ts - Date.now()) / 1000;
+      if (secUntil > 0 && secUntil <= 3700)  fundingInterval = 1;  // < 1h left → 1H coin
+      else if (secUntil <= 14600)            fundingInterval = 4;  // < 4h left → 4H coin
+    }
+
     map[base] = {
-      symbol:      t.symbol || '',
-      productId:   t.id || t.product_id,
+      symbol:          t.symbol || '',
+      productId:       t.id || t.product_id,
       price,
-      fundingRate: +fr.toFixed(6),   // Delta already returns % (e.g. -0.0716 = -0.0716%)
-      volume24h:   parseFloat(t.volume || t.turnover_usd || 0),
-      change24h:   parseFloat(t.price_change_percent || 0),
-      nextFunding: t.next_funding_realization || null
+      fundingRate:     +fr.toFixed(6),
+      volume24h:       parseFloat(t.volume || t.turnover_usd || 0),
+      change24h:       parseFloat(t.price_change_percent || 0),
+      nextFunding:     t.next_funding_realization || null,
+      nextFundingTs,
+      fundingInterval  // 1, 4, or 8
     };
   }
   return map;
@@ -423,26 +446,54 @@ app.all('/api/scan', async (_req, res) => {
     const opps = [];
     for (const [base, d] of Object.entries(deltaMap)) {
       const c = dcxMap[base];
-      if (!c||d.price<=0||c.price<=0) continue;
+      if (!c || d.price <= 0 || c.price <= 0) continue;
+
       const { longEx, shortEx, scenario, scenarioType, diff, net } = calcStrat(d.fundingRate, c.fundingRate);
-      const avg  = (d.price+c.price)/2;
-      const spr  = avg>0 ? +((Math.abs(d.price-c.price)/avg)*100).toFixed(4) : 0;
-      const now  = new Date();
-      const sec  = now.getUTCHours()*3600+now.getUTCMinutes()*60+now.getUTCSeconds();
-      const rem  = 8*3600-(sec%(8*3600));
-      const urg  = rem<=1800?'urgent':rem<=3600?'soon':'normal';
-      const score= diff*(scenarioType==='goldmine'?2.5:1)*(urg==='urgent'?2:urg==='soon'?1.5:1);
+      const avg  = (d.price + c.price) / 2;
+      const spr  = avg > 0 ? +((Math.abs(d.price - c.price) / avg) * 100).toFixed(4) : 0;
+
+      // Per-coin: time until next funding
+      const fi  = d.fundingInterval || 8;                      // 1, 4, or 8
+      const fiSec = fi * 3600;
+      let secToFunding;
+      if (d.nextFundingTs) {
+        secToFunding = Math.max(0, Math.round((d.nextFundingTs - Date.now()) / 1000));
+      } else {
+        const nowSec = Math.floor(Date.now() / 1000);
+        secToFunding = fiSec - (nowSec % fiSec);
+      }
+      const urg   = secToFunding <= 1800 ? 'urgent' : secToFunding <= 3600 ? 'soon' : 'normal';
+      // Score: bigger diff + goldmine bonus + urgency boost
+      const score = diff
+        * (scenarioType === 'goldmine' ? 2.5 : 1)
+        * (urg === 'urgent' ? 2.0 : urg === 'soon' ? 1.5 : 1.0);
+
       opps.push({
-        base, deltaSymbol:d.symbol, dcxSymbol:c.symbol, deltaProductId:d.productId,
-        deltaPrice:d.price, dcxPrice:c.price, deltaFunding:d.fundingRate, dcxFunding:c.fundingRate,
-        fundingDiff:diff, netYield:net, spread:spr,
-        volume:+(Math.max(d.volume24h,c.volume24h)).toFixed(2),
-        deltaChange24h:d.change24h, dcxChange24h:c.change24h,
-        longExchange:longEx, shortExchange:shortEx,
-        scenario, scenarioType, urgency:urg, score
+        base,
+        deltaSymbol:    d.symbol,
+        dcxSymbol:      c.symbol,
+        deltaProductId: d.productId,
+        deltaPrice:     d.price,
+        dcxPrice:       c.price,
+        deltaFunding:   d.fundingRate,
+        dcxFunding:     c.fundingRate,
+        fundingDiff:    diff,
+        netYield:       net,
+        spread:         spr,
+        volume:         +(Math.max(d.volume24h, c.volume24h)).toFixed(2),
+        deltaChange24h: d.change24h,
+        dcxChange24h:   c.change24h,
+        longExchange:   longEx,
+        shortExchange:  shortEx,
+        scenario, scenarioType,
+        urgency:        urg,
+        fundingInterval: fi,       // 1 / 4 / 8
+        secToFunding,              // seconds until next funding for THIS coin
+        nextFundingTs:  d.nextFundingTs || null,
+        score
       });
     }
-    opps.sort((a,b)=>b.score-a.score);
+    opps.sort((a, b) => b.score - a.score);
     res.json({
       success:true, data:opps, count:opps.length,
       deltaCount:Object.keys(deltaMap).length, dcxCount:Object.keys(dcxMap).length,
