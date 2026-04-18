@@ -246,6 +246,22 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 .conf-no{flex:1;padding:11px;background:var(--s2);border:1px solid var(--b1);color:var(--t2);border-radius:var(--rad);font-weight:600}
 .conf-yes{flex:1;padding:11px;background:var(--r);color:#fff;border-radius:var(--rad);font-weight:700}
 
+/* INTERVAL FILTER */
+.ibar{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.ibar-lbl{font-size:10px;color:var(--t3);font-weight:600;letter-spacing:.5px}
+.itab{padding:5px 14px;border-radius:20px;border:1px solid var(--b1);background:var(--s2);color:var(--t2);font-size:11px;font-weight:600;transition:all .14s}
+.itab.all.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.itab.h1.on{background:#7c4dff;color:#fff;border-color:#7c4dff}
+.itab.h4.on{background:#ff6d00;color:#fff;border-color:#ff6d00}
+.itab.h8.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+/* per-coin countdown */
+.ctimer{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:700;font-family:var(--m)}
+.ctimer.normal{background:var(--s3);border:1px solid var(--b1);color:var(--t3)}
+.ctimer.soon{background:var(--gdBg);border:1px solid var(--gdBd);color:var(--gd)}
+.ctimer.urgent{background:var(--rBg);border:1px solid var(--rBd);color:var(--r);animation:fp 1s infinite}
+.cfi{font-size:8px;opacity:.7;margin-left:1px}
+
+
 .toasts{position:fixed;bottom:20px;right:14px;display:flex;flex-direction:column;gap:8px;z-index:999}
 .toast{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rad);padding:10px 14px;font-size:11px;max-width:280px;animation:tin .2s;color:var(--t1)}
 .toast.ok{border-left:3px solid var(--g)}.toast.err{border-left:3px solid var(--r)}.toast.warn{border-left:3px solid var(--gd)}
@@ -342,6 +358,15 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
     <button class="bscan" id="scanBtn" onclick="doScan()">Refresh Data</button>
     <div class="lup">Last: <span id="lastUp">never</span></div>
     <div class="fw"><label>Min Diff %</label><input type="number" id="minDiff" value="0" step="0.001" oninput="renderGrid()"/></div>
+  </div>
+  <!-- Funding Interval Filter -->
+  <div class="ibar" id="ibar" style="display:none">
+    <span class="ibar-lbl">Interval:</span>
+    <button class="itab all on" onclick="setInterval_('all',this)">All</button>
+    <button class="itab h1"    onclick="setInterval_('1',this)">1H</button>
+    <button class="itab h4"    onclick="setInterval_('4',this)">4H</button>
+    <button class="itab h8"    onclick="setInterval_('8',this)">8H</button>
+    <span style="font-size:10px;color:var(--t3);margin-left:4px" id="iCount"></span>
   </div>
   <div class="chips" id="chips" style="display:none">
     <div class="chip">Total <b id="stT">0</b></div>
@@ -454,7 +479,7 @@ label{display:block;color:var(--t3);font-size:10px;margin-bottom:3px}
 <div class="toasts" id="toasts"></div>
 
 <script>
-const S={url:'',opps:[],sel:null,ot:'market',advOpen:true,theme:localStorage.getItem('fa13_t')||'d'};
+const S={url:'',opps:[],sel:null,ot:'market',advOpen:true,theme:localStorage.getItem('fa13_t')||'d',intervalFilter:'all',railwayIP:'',_timerTick:null};
 
 window.addEventListener('DOMContentLoaded',()=>{
   applyTh(S.theme);
@@ -528,7 +553,7 @@ function setDot(ex,ok,cnt){
   const el=document.getElementById(ex+'Cnt');el.textContent=ok?(cnt||'?')+' coins':'failed';el.style.color=ok?'var(--g)':'var(--r)';
 }
 function updSt(){
-  const o=S.opps;
+  const o=getFilteredOpps();
   document.getElementById('stT').textContent=o.length;
   document.getElementById('stG').textContent=o.filter(x=>x.scenarioType==='goldmine').length;
   document.getElementById('stP').textContent=o.filter(x=>x.scenarioType==='positive').length;
@@ -537,47 +562,70 @@ function updSt(){
 }
 
 function togAdv(){S.advOpen=!S.advOpen;document.getElementById('advBdy').style.display=S.advOpen?'':'none';document.getElementById('advTog').textContent=S.advOpen?'hide':'show';}
-function sToF(){const n=new Date(),s=n.getUTCHours()*3600+n.getUTCMinutes()*60+n.getUTCSeconds();return 8*3600-(s%(8*3600));}
+function openMF(b){const o=S.opps.find(x=>x.base===b);if(o)openM(o);}
+
+function sToF(fi){
+  // seconds to next funding for a given interval (1/4/8 hours)
+  const fiSec=(fi||8)*3600;
+  return fiSec-(Math.floor(Date.now()/1000)%fiSec);
+}
 
 function renderAdv(){
   const adv=document.getElementById('adv');
-  if(!S.opps.length){adv.classList.remove('on');return;}
+  const filtered=getFilteredOpps();
+  if(!filtered.length){adv.classList.remove('on');return;}
   adv.classList.add('on');
-  const rem=sToF(),h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60),ts=h+'h '+m+'m';
-  const scored=S.opps.filter(o=>o.netYield>0).sort((a,b)=>b.score-a.score).slice(0,3);
+  const scored=filtered.filter(o=>o.netYield>0).sort((a,b)=>b.score-a.score).slice(0,3);
   if(!scored.length){document.getElementById('advTop').innerHTML='<div style="color:var(--t3);font-size:11px;grid-column:1/-1">No profitable opportunity after fees right now.</div>';document.getElementById('advWhy').innerHTML='';return;}
   const top=scored[0];
-  document.getElementById('advTop').innerHTML=scored.map((o,i)=>`
-    <div class="ac ${i===0?'top':''}"><div class="ac-rk">#${i+1}</div>
-    <div class="ac-coin">${o.base}</div><div class="ac-tp ${o.scenarioType}">${o.scenario}</div>
-    <div class="ac-dir"><span class="lt">L: ${o.longExchange}</span><br><span class="st">S: ${o.shortExchange}</span></div>
-    <div class="ac-yld">Net: +${o.netYield.toFixed(4)}%</div>
-    ${i===0?`<button class="badv" onclick="openMF('${o.base}')">Trade Now</button>`:''}</div>`).join('');
+  document.getElementById('advTop').innerHTML=scored.map((o,i)=>{
+    const sec=o.secToFunding||sToF(o.fundingInterval);
+    const hh=Math.floor(sec/3600),mm=Math.floor((sec%3600)/60),ss=sec%60;
+    const tStr=(hh>0?hh+'h ':'')+mm+'m '+pad(ss)+'s';
+    const urg=sec<=1800?'urgent':sec<=3600?'soon':'normal';
+    const urgColor=urg==='urgent'?'var(--r)':urg==='soon'?'var(--gd)':'var(--t3)';
+    return `<div class="ac ${i===0?'top':''}"><div class="ac-rk">#${i+1}</div>
+      <div class="ac-coin">${o.base} <span style="font-size:9px;color:var(--ac);font-weight:600">${o.fundingInterval||8}H</span></div>
+      <div class="ac-tp ${o.scenarioType}">${o.scenario}</div>
+      <div class="ac-dir"><span class="lt">L: ${o.longExchange}</span><br><span class="st">S: ${o.shortExchange}</span></div>
+      <div class="ac-yld">Net: +${o.netYield.toFixed(4)}%</div>
+      <div style="font-size:9px;color:${urgColor};margin-top:3px">⏱ ${tStr}</div>
+      ${i===0?`<button class="badv" onclick="openMF('${o.base}')">Trade Now</button>`:''}</div>`;
+  }).join('');
   const dF=top.deltaFunding,cF=top.dcxFunding;
   let why='';
   if(top.scenarioType==='goldmine'){const posEx=dF>0?'Delta':'CoinDCX',negEx=dF<0?'Delta':'CoinDCX';why=`<b>GOLDMINE on ${top.base}</b> — Short ${posEx} (+${(dF>0?dF:cF).toFixed(4)}%): earn funding. Long ${negEx} (${(dF<0?dF:cF).toFixed(4)}%): earn funding. Collect from BOTH sides. Net: ${top.netYield.toFixed(4)}%.`;}
-  else if(top.scenarioType==='negative'){why=`<b>Both Negative on ${top.base}</b> — Long ${top.longExchange} (${(top.longExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding every 8h. Short ${top.shortExchange}: hedges all price risk. Net: ${top.netYield.toFixed(4)}%.`;}
-  else{why=`<b>Both Positive on ${top.base}</b> — Short ${top.shortExchange} (${(top.shortExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding. Long ${top.longExchange}: hedges price. Net: ${top.netYield.toFixed(4)}%.`;}
-  const uc=rem<1800?'var(--r)':rem<3600?'var(--gd)':'var(--t2)';
-  const ut=rem<1800?'URGENT — enter NOW, '+ts+' left':rem<3600?'Good window — enter soon, '+ts+' left':'Early — '+ts+' until funding';
+  else if(top.scenarioType==='negative'){why=`<b>Both Negative on ${top.base}</b> — Long ${top.longExchange} (${(top.longExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding every ${top.fundingInterval||8}h. Short ${top.shortExchange}: hedges all price risk. Net: ${top.netYield.toFixed(4)}%.`;}
+  else{why=`<b>Both Positive on ${top.base}</b> — Short ${top.shortExchange} (${(top.shortExchange==='Delta'?dF:cF).toFixed(4)}%): RECEIVE funding every ${top.fundingInterval||8}h. Long ${top.longExchange}: hedges price. Net: ${top.netYield.toFixed(4)}%.`;}
+  const sec=top.secToFunding||sToF(top.fundingInterval);
+  const hh=Math.floor(sec/3600),mm=Math.floor((sec%3600)/60),ss=sec%60;
+  const ts=(hh>0?hh+'h ':'')+mm+'m '+pad(ss)+'s';
+  const uc=sec<1800?'var(--r)':sec<3600?'var(--gd)':'var(--t2)';
+  const ut=sec<1800?'🔴 URGENT — enter NOW, '+ts+' left!':sec<3600?'🟡 Good window — enter soon, '+ts+' left':'🟢 Early — '+ts+' until funding';
   document.getElementById('advWhy').innerHTML=why+'<br><br><span style="color:'+uc+';font-weight:600">'+ut+'</span>';
 }
 
-function openMF(b){const o=S.opps.find(x=>x.base===b);if(o)openM(o);}
-
 function renderGrid(){
-  const min=parseFloat(document.getElementById('minDiff').value)||0;
-  const data=S.opps.filter(o=>o.fundingDiff>=min);
+  const data=getFilteredOpps();
   const g=document.getElementById('grid');
-  if(!data.length){g.innerHTML=S.opps.length===0?'<div class="empty">Press "Refresh Data" to scan both exchanges.</div>':'<div class="empty">No pairs match filter. Lower Min Diff %.</div>';return;}
+  // Show interval bar after first scan
+  if(S.opps.length>0)document.getElementById('ibar').style.display='flex';
+  if(!data.length){g.innerHTML=S.opps.length===0?'<div class="empty">Press "Refresh Data" to scan both exchanges.</div>':'<div class="empty">No pairs match filter. Try "All" or lower Min Diff %.</div>';return;}
   g.innerHTML=data.map(o=>{
     const dfc=o.deltaFunding>0?'fp':o.deltaFunding<0?'fn':'fz';
     const cfc=o.dcxFunding>0?'fp':o.dcxFunding<0?'fn':'fz';
     const dc=o.fundingDiff>=0.05?'mh':'mn',yc=o.netYield>0?'mp':'mr';
     const bdg=o.scenarioType==='goldmine'?'<span class="bdg g">GOLDMINE</span>':o.scenarioType==='positive'?'<span class="bdg n">Both +</span>':'<span class="bdg r">Both -</span>';
     const chg=o.deltaChange24h;const oj=JSON.stringify(o).replace(/'/g,"&#39;");
+    // Per-coin timer badge
+    const fiH=o.fundingInterval||8;
+    const sec=o.secToFunding||0;
+    const urg=sec<=1800?'urgent':sec<=3600?'soon':'normal';
+    const hh=Math.floor(sec/3600),mm=Math.floor((sec%3600)/60),ss=sec%60;
+    const timerStr=(hh>0?hh+':':'')+pad(mm)+':'+pad(ss);
+    const timerBadge=`<span class="ctimer ${urg}" data-nfts="${o.nextFundingTs||0}" data-fi="${fiH}"><span class="ctime">${timerStr}</span><span class="cfi">${fiH}H</span></span>`;
     return `<div class="card ${o.scenarioType}" onclick='openM(${oj})'>
-      <div class="chd"><span class="ccoin">${o.base}</span>${bdg}<span class="cchg ${chg>=0?'up':'dn'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span></div>
+      <div class="chd"><span class="ccoin">${o.base}</span>${bdg}${timerBadge}<span class="cchg ${chg>=0?'up':'dn'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span></div>
       <div class="cpx">
         <div class="pxc"><div class="pxe">Delta (USD)</div><div class="pxp">$${fmt(o.deltaPrice)}</div><div class="pxf ${dfc}">${o.deltaFunding>0?'+':''}${o.deltaFunding.toFixed(4)}%</div></div>
         <div class="pxc"><div class="pxe">CoinDCX (USD)</div><div class="pxp">$${fmt(o.dcxPrice)}</div><div class="pxf ${cfc}">${o.dcxFunding>0?'+':''}${o.dcxFunding.toFixed(4)}%</div></div>
@@ -635,6 +683,27 @@ function openM(o){
 }
 function closeM(){document.getElementById('modal').classList.add('off');S.sel=null;}
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeM();});
+function setInterval_(v, btn){
+  S.intervalFilter=v;
+  document.querySelectorAll('.itab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderGrid();
+  renderAdv();
+  // Update header timer interval
+  startClk();
+  // Update iCount
+  const cnt=S.opps.filter(o=>v==='all'||String(o.fundingInterval||8)===v).length;
+  const el=document.getElementById('iCount');if(el)el.textContent=cnt+' coins';
+}
+
+function getFilteredOpps(){
+  const min=parseFloat(document.getElementById('minDiff').value)||0;
+  return S.opps.filter(o=>{
+    if(o.fundingDiff<min)return false;
+    if(S.intervalFilter==='all')return true;
+    return String(o.fundingInterval||8)===S.intervalFilter;
+  });
+}
 function setOT(t){S.ot=t;document.getElementById('bMkt').classList.toggle('on',t==='market');document.getElementById('bLmt').classList.toggle('on',t==='limit');document.getElementById('limPx').style.display=t==='limit'?'block':'none';if(t==='limit'&&S.sel){document.getElementById('oLD').value=S.sel.deltaPrice;document.getElementById('oLC').value=S.sel.dcxPrice;}}
 function calcN(){const o=S.sel;if(!o)return;const q=parseFloat(document.getElementById('oQty').value)||1;document.getElementById('oNot').value='$'+fmt((o.deltaPrice+o.dcxPrice)/2*q)+' USD';}
 
@@ -828,7 +897,33 @@ async function runDbgDcx(){
   }catch(e){dbgWrite(`<span class="sl-err">Error: ${esc(e.message)}</span>`);}
 }
 
-function startClk(){function tick(){const n=new Date(),s=n.getUTCHours()*3600+n.getUTCMinutes()*60+n.getUTCSeconds();const r=8*3600-(s%(8*3600));const h=Math.floor(r/3600),m=Math.floor((r%3600)/60),sc=r%60;document.getElementById('ftime').textContent=(h>0?h+':':'')+pad(m)+':'+pad(sc);document.getElementById('fdot').classList.toggle('on',r<=600);}tick();setInterval(tick,1000);}
+function startClk(){
+  function tick(){
+    // Header timer: show next funding for selected interval
+    const fi = parseInt(S.intervalFilter) || 8;
+    const fiSec = fi * 3600;
+    const nowSec = Math.floor(Date.now()/1000);
+    const rem = fiSec - (nowSec % fiSec);
+    const h=Math.floor(rem/3600),m=Math.floor((rem%3600)/60),sc=rem%60;
+    document.getElementById('ftime').textContent=(h>0?h+':':'')+pad(m)+':'+pad(sc);
+    document.getElementById('fdot').classList.toggle('on',rem<=600);
+    // Update per-coin countdown badges
+    document.querySelectorAll('[data-nfts]').forEach(el=>{
+      const nfts=parseInt(el.dataset.nfts);
+      const interval=parseInt(el.dataset.fi)||8;
+      let sec;
+      if(nfts>0){sec=Math.max(0,Math.round((nfts-Date.now())/1000));}
+      else{const fiS=interval*3600;sec=fiS-(Math.floor(Date.now()/1000)%fiS);}
+      const urg=sec<=1800?'urgent':sec<=3600?'soon':'normal';
+      el.className='ctimer '+urg;
+      const hh=Math.floor(sec/3600),mm=Math.floor((sec%3600)/60),ss=sec%60;
+      el.querySelector('.ctime').textContent=(hh>0?hh+':':'')+pad(mm)+':'+pad(ss);
+    });
+  }
+  tick();
+  if(S._timerTick)clearInterval(S._timerTick);
+  S._timerTick=setInterval(tick,1000);
+}
 function goTab(id,btn){document.querySelectorAll('.pane').forEach(e=>e.classList.remove('on'));document.querySelectorAll('.tab').forEach(e=>e.classList.remove('on'));document.getElementById('pane-'+id).classList.add('on');btn.classList.add('on');}
 function toast(msg,type='ok'){const w=document.getElementById('toasts');const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;w.appendChild(t);setTimeout(()=>t.remove(),3800);}
 function pad(n){return String(n).padStart(2,'0')}
